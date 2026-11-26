@@ -66,6 +66,18 @@ def _parse_datetime(value):
         return None
 
 
+def _team_logo(team):
+    """Return the best real badge URL exposed by ESPN, without inventing one."""
+    candidates = [team.get("logo")]
+    logos = team.get("logos") or []
+    if isinstance(logos, list):
+        candidates.extend(item.get("href") for item in logos if isinstance(item, dict))
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.startswith(("https://", "http://")):
+            return candidate
+    return ""
+
+
 def normalize_event(league, league_name, event):
     competitions = event.get("competitions") or []
     if not competitions:
@@ -102,7 +114,11 @@ def normalize_event(league, league_name, event):
             round_name = f"الجولة {round_info['number']}"
     else:
         round_name = str(round_info) if round_info else ""
-    status = ((competition.get("status") or {}).get("type") or {}).get("state", "")
+    status_type = ((competition.get("status") or {}).get("type") or {})
+    status = (status_type.get("state") or "").lower()
+    status_name = (status_type.get("name") or "").lower()
+    if status in {"post", "final"} or "final" in status_name or "full time" in status_name:
+        status = "post"
     return {
         "league_slug": league["slug"],
         "league": league.get("name") or league_name,
@@ -110,8 +126,8 @@ def normalize_event(league, league_name, event):
         "kickoff": kickoff.isoformat(),
         "home": home_team.get("displayName") or home_team.get("name") or "الفريق المضيف",
         "away": away_team.get("displayName") or away_team.get("name") or "الفريق الضيف",
-        "home_logo": home_team.get("logo") or "",
-        "away_logo": away_team.get("logo") or "",
+        "home_logo": _team_logo(home_team),
+        "away_logo": _team_logo(away_team),
         "home_form": home.get("form") or "",
         "away_form": away.get("form") or "",
         "home_record": ((home.get("records") or [{}])[0]).get("summary", ""),
@@ -183,13 +199,14 @@ def _download_logo(url):
 
 def _paste_badge(canvas, url, center, fallback, draw):
     x, y = center
-    diameter = 194
-    draw.ellipse((x - diameter // 2 - 8, y - diameter // 2 - 8,
-                  x + diameter // 2 + 8, y + diameter // 2 + 8),
-                 fill=(255, 255, 255), outline=(104, 220, 255), width=5)
+    diameter = 176
+    draw.ellipse((x - diameter // 2 - 7, y - diameter // 2 - 7,
+                  x + diameter // 2 + 7, y + diameter // 2 + 7),
+                 fill=(255, 255, 255), outline=(214, 220, 230), width=4)
     logo = _download_logo(url)
     if logo is None:
-        draw.text((x, y), fallback[:3].upper(), font=_font(48, True), fill=(26, 72, 145), anchor="mm")
+        initials = str(fallback or "FC").strip()[:2]
+        draw.text((x, y), _rtl(initials), font=_font(42, True), fill=(30, 41, 59), anchor="mm")
         return
     badge = Image.new("RGBA", (diameter, diameter), (255, 255, 255, 255))
     bx = (diameter - logo.width) // 2
@@ -210,51 +227,50 @@ def _fit_text(draw, text, max_width, preferred=34, min_size=21):
 
 
 def make_match_card(match):
+    """Create a clean, spacious Arabic-first fixture card with no overlapping text."""
     width, height = 1200, 675
-    top, bottom = (19, 48, 111), (42, 126, 198)
-    canvas = Image.new("RGB", (width, height))
-    pixels = canvas.load()
-    for y in range(height):
-        ratio = y / (height - 1)
-        color = tuple(int(top[i] * (1 - ratio) + bottom[i] * ratio) for i in range(3))
-        for x in range(width):
-            pixels[x, y] = color
-
+    canvas = Image.new("RGB", (width, height), (10, 15, 26))
     draw = ImageDraw.Draw(canvas)
-    draw.ellipse((-170, 280, 360, 810), fill=(27, 83, 157))
-    draw.ellipse((850, -270, 1390, 270), fill=(29, 97, 171))
-    draw.rounded_rectangle((38, 30, 1162, 645), radius=38, fill=(24, 67, 135), outline=(117, 222, 255), width=3)
-    draw.rounded_rectangle((72, 55, 390, 112), radius=17, fill=(81, 211, 246))
-    draw.text((231, 83), "KORAX MATCH CENTER", font=_font(25, True), fill=(19, 57, 117), anchor="mm")
-
+    draw.rounded_rectangle((34, 28, 1166, 647), radius=34,
+                           fill=(18, 27, 44), outline=(53, 68, 91), width=2)
+    draw.rounded_rectangle((72, 58, 1128, 150), radius=22, fill=(25, 39, 61))
+    draw.text((600, 87), "KORAX", font=_font(23, True), fill=(104, 190, 255), anchor="mm")
     league_text = _rtl(match.get("league", "بطولة كرة القدم"))
-    draw.text((1125, 83), league_text, font=_fit_text(draw, league_text, 680, 32, 22), fill=(255, 255, 255), anchor="rm")
+    draw.text((600, 121), league_text, font=_fit_text(draw, league_text, 980, 30, 19),
+              fill=(248, 250, 252), anchor="mm")
 
-    _paste_badge(canvas, match.get("home_logo"), (345, 282), match.get("home", "HOME"), draw)
-    _paste_badge(canvas, match.get("away_logo"), (855, 282), match.get("away", "AWAY"), draw)
-    draw.text((600, 280), "VS", font=_font(48, True), fill=(151, 231, 255), anchor="mm")
-    home_text, away_text = match.get("home", ""), match.get("away", "")
-    draw.text((345, 410), home_text, font=_fit_text(draw, home_text, 420, 35), fill=(255, 255, 255), anchor="mm")
-    draw.text((855, 410), away_text, font=_fit_text(draw, away_text, 420, 35), fill=(255, 255, 255), anchor="mm")
+    _paste_badge(canvas, match.get("home_logo"), (340, 315), match.get("home", ""), draw)
+    _paste_badge(canvas, match.get("away_logo"), (860, 315), match.get("away", ""), draw)
+    draw.text((600, 304), "VS", font=_font(31, True), fill=(148, 163, 184), anchor="mm")
+
+    home_text = _rtl(match.get("home", "الفريق المضيف"))
+    away_text = _rtl(match.get("away", "الفريق الضيف"))
+    draw.text((340, 430), home_text, font=_fit_text(draw, home_text, 390, 32, 18),
+              fill=(255, 255, 255), anchor="mm")
+    draw.text((860, 430), away_text, font=_fit_text(draw, away_text, 390, 32, 18),
+              fill=(255, 255, 255), anchor="mm")
 
     kickoff = _parse_datetime(match["kickoff"]).astimezone(CAIRO)
     formatted = format_cairo_date(kickoff)
-    draw.rounded_rectangle((105, 463, 1095, 555), radius=24, fill=(245, 251, 255), outline=(104, 220, 255), width=3)
-    draw.text((600, 492), _rtl(formatted["date"]), font=_font(27, True), fill=(24, 67, 135), anchor="mm")
-    draw.text((600, 531), _rtl("موعد المباراة: " + formatted["time"] + " بتوقيت مصر"), font=_font(27, True), fill=(24, 67, 135), anchor="mm")
+    draw.rounded_rectangle((165, 485, 1035, 580), radius=20,
+                           fill=(29, 43, 64), outline=(62, 86, 116), width=2)
+    date_text = _rtl(formatted["date"])
+    time_text = _rtl("موعد المباراة  " + formatted["time"] + "  بتوقيت مصر")
+    draw.text((600, 516), date_text, font=_font(23, True), fill=(203, 213, 225), anchor="mm")
+    draw.text((600, 553), time_text, font=_fit_text(draw, time_text, 820, 25, 18),
+              fill=(104, 190, 255), anchor="mm")
 
-    details = " • ".join(part for part in (match.get("stage"), match.get("round"), match.get("venue")) if part)
+    details = "  •  ".join(part for part in
+                           (match.get("stage"), match.get("round"), match.get("venue")) if part)
     if details:
-        details = details[:110]
-        details_rtl = _rtl(details)
-        draw.text((600, 594), details_rtl, font=_fit_text(draw, details_rtl, 1020, 22, 16), fill=(239, 249, 255), anchor="mm")
-    draw.text((1120, 615), "KORAX • FOOTBALL", font=_font(17, True), fill=(232, 248, 255), anchor="rm")
+        details_rtl = _rtl(details[:90])
+        draw.text((600, 612), details_rtl, font=_fit_text(draw, details_rtl, 1000, 17, 13),
+                  fill=(148, 163, 184), anchor="mm")
 
     output = BytesIO()
     canvas.save(output, format="JPEG", quality=94, optimize=True, progressive=True, subsampling=0)
     output.seek(0)
     return output
-
 
 def _escape(value):
     return html.escape(str(value or ""), quote=True)
@@ -342,7 +358,7 @@ def main():
                 if not match:
                     continue
                 kickoff = _parse_datetime(match["kickoff"])
-                if kickoff and now <= kickoff <= end and match.get("status") != "post":
+                if kickoff and now < kickoff <= end and match.get("status") == "pre":
                     results.append(match)
 
     if healthy == 0:

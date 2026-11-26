@@ -48,5 +48,50 @@
     "name": "أخبار 24 | كرة القدم السعودية",
     "url": "https://news.google.com/rss/search?q=site%3Aakhbaar24.com+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%84%D9%87%D9%84%D8%A7%D9%84+OR+%D8%A7%D9%84%D9%86%D8%B5%D8%B1%29&hl=ar&gl=SA&ceid=SA%3Aar",
     "strict_search": true
+  },
+  {
+    "name": "بطولات | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Abtolat.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "جول العربي | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Agoal.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "هاي كورة | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Ahihi2.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "بي إن سبورتس | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Abeinsports.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "مصراوي | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Amasrawy.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "الجزيرة | رياضة وكرة قدم",
+    "url": "https://news.google.com/rss/search?q=site%3Aaljazeera.net%2Fsport%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "عاجل | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Aajel.sa%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "سبق | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Asabq.org%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
+  },
+  {
+    "name": "365Scores | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3A365scores.com%20(%D9%83%D8%B1%D8%A9%20%D8%A7%D9%84%D9%82%D8%AF%D9%85%20OR%20%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A%20OR%20%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%20OR%20%D9%85%D9%86%D8%AA%D8%AE%D8%A8)&hl=ar&gl=EG&ceid=EG:ar",
+    "strict_search": true
   }
 ]

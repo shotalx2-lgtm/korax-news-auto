@@ -4,7 +4,11 @@ import hashlib
 import html
 import re
 import time
+import glob
+from io import BytesIO
 from urllib.parse import urlparse
+
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 import requests
 import feedparser
@@ -17,8 +21,8 @@ TG = f"https://api.telegram.org/bot{BOT_TOKEN}"
 MAX_POSTS_PER_RUN = 8
 
 
-def telegram_api(method, *, data=None, timeout=25):
-    response = requests.post(f"{TG}/{method}", data=data or {}, timeout=timeout)
+def telegram_api(method, *, data=None, files=None, timeout=25):
+    response = requests.post(f"{TG}/{method}", data=data or {}, files=files, timeout=timeout)
     try:
         payload = response.json()
     except ValueError:
@@ -101,25 +105,120 @@ def build_caption(title, summary, source_name, link):
     return caption
 
 
-def send_message(text, image=None):
+def _font(size, bold=False):
+    patterns = [
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in patterns:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size)
+    matches = glob.glob("/usr/share/fonts/**/*Arabic*.*tf", recursive=True)
+    if matches:
+        return ImageFont.truetype(matches[0], size)
+    return ImageFont.load_default()
+
+
+def _rtl(text):
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        return get_display(arabic_reshaper.reshape(text))
+    except Exception:
+        return text
+
+
+def _wrap_arabic(draw, text, font, max_width):
+    words = text.split()
+    lines, current = [], ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textbbox((0, 0), _rtl(candidate), font=font)[2] <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def make_news_card(image_url, title, source_name):
+    width, height = 1080, 1080
+    lime = (190, 255, 0)
+    canvas = Image.new("RGB", (width, height), (5, 7, 7))
+    draw = ImageDraw.Draw(canvas)
+
+    if image_url:
+        try:
+            response = requests.get(image_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+            response.raise_for_status()
+            photo = Image.open(BytesIO(response.content)).convert("RGB")
+            if photo.width >= 320 and photo.height >= 180:
+                target_ratio = width / 610
+                ratio = max(width / photo.width, 610 / photo.height)
+                photo = photo.resize((int(photo.width * ratio), int(photo.height * ratio)), Image.Resampling.LANCZOS)
+                left = (photo.width - width) // 2
+                top = (photo.height - 610) // 2
+                canvas.paste(photo.crop((left, top, left + width, top + 610)), (0, 0))
+            else:
+                print("Image too small; using branded fallback card.")
+        except Exception as exc:
+            print("Image download failed; using branded fallback card:", repr(exc))
+
+    # Dark fade between the photograph and the information panel.
+    fade = Image.new("RGBA", (width, 180), (0, 0, 0, 0))
+    fd = ImageDraw.Draw(fade)
+    for y in range(180):
+        alpha = int(245 * y / 179)
+        fd.line((0, y, width, y), fill=(5, 7, 7, alpha))
+    canvas.paste(fade, (0, 430), fade)
+
+    draw = ImageDraw.Draw(canvas)
+    draw.rectangle((0, 0, width, 12), fill=lime)
+    draw.rounded_rectangle((52, 48, 355, 122), radius=24, fill=(5, 7, 7))
+    draw.rounded_rectangle((52, 48, 355, 122), radius=24, outline=lime, width=3)
+    draw.text((78, 64), "KORAX NEWS", font=_font(38, True), fill=lime)
+
+    # Lime accent and restrained editorial layout.
+    draw.rounded_rectangle((52, 660, 1028, 664), radius=2, fill=lime)
+    title_font = _font(54, True)
+    lines = _wrap_arabic(draw, title or "آخر أخبار كرة القدم", title_font, 940)[:4]
+    y = 700
+    for line in lines:
+        draw.text((1018, y), _rtl(line), font=title_font, fill=(248, 250, 245), anchor="ra", direction="rtl" if not _rtl(line) == line else None)
+        y += 72
+
+    draw.rounded_rectangle((52, 990, 1028, 1050), radius=18, fill=(18, 23, 18))
+    draw.ellipse((78, 1010, 98, 1030), fill=lime)
+    draw.text((120, 1002), "KORAX NEWS  •  " + (source_name or "FOOTBALL"), font=_font(25, True), fill=(205, 215, 195))
+    draw.text((1000, 1003), "LIVE", font=_font(25, True), fill=lime, anchor="ra")
+
+    output = BytesIO()
+    canvas.save(output, format="JPEG", quality=94, optimize=True, progressive=True)
+    output.seek(0)
+    return output
+
+
+def send_message(text, image=None, title=""):
     if image:
         try:
+            card = make_news_card(image, title, "KORAX")
             telegram_api("sendPhoto", data={
                 "chat_id": CHAT_ID,
-                "photo": image,
                 "caption": text,
                 "parse_mode": "HTML",
-            }, timeout=35)
+            }, files={"photo": ("korax-news.jpg", card, "image/jpeg")}, timeout=45)
             return
         except Exception as exc:
-            print("Photo send failed; trying text message:", repr(exc))
+            print("Branded photo send failed; trying text message:", repr(exc))
     telegram_api("sendMessage", data={
         "chat_id": CHAT_ID,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": False,
     })
-
 
 def load_seen():
     try:
@@ -190,7 +289,7 @@ def main():
         image = get_image(entry)
         caption = build_caption(title_ar, summary_ar, source["name"], link)
 
-        send_message(caption, image)
+        send_message(caption, image, title_ar)
         seen.add(key)
         published += 1
         print(f"Published successfully: {original_title} ({urlparse(link).netloc})")

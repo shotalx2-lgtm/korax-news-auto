@@ -396,13 +396,13 @@ def wrap_rtl(draw, text, font, max_width):
     return lines
 
 
-def category_for(title, summary):
-    text = f"{title} {summary}".lower()
+def category_for(title, summary, source_name=""):
+    text = f"{title} {summary} {source_name}".lower()
     categories = [
         (("champions league", "دوري أبطال أوروبا", "دوري الأبطال"), "دوري أبطال أوروبا"),
         (("premier league", "الدوري الإنجليزي"), "الدوري الإنجليزي"),
         (("la liga", "الدوري الإسباني"), "الدوري الإسباني"),
-        (("serie a", "الدوري الإيطالي"), "الدوري الإيطالي"),
+        (("serie a", "الدوري الإيطالي", "كرة القدم الإيطالية"), "الدوري الإيطالي"),
         (("bundesliga", "الدوري الألماني"), "الدوري الألماني"),
         (("ligue 1", "الدوري الفرنسي"), "الدوري الفرنسي"),
         (("saudi pro", "روشن", "الدوري السعودي"), "الكرة العربية"),
@@ -570,7 +570,7 @@ def main():
             summary_ar = ""
 
         link = entry.get("link", "").strip()
-        category = category_for(original_title, original_summary)
+        category = category_for(original_title, original_summary, source.get("name", ""))
         photo_bytes = download_best_image(entry, link)
         caption = build_caption(title_ar, summary_ar, source["name"], link, category)
         send_news(caption, photo_bytes, title_ar, category, source["name"])

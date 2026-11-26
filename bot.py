@@ -331,11 +331,24 @@ def download_best_image(entry, article_url):
     if best:
         return best[1]
 
-    # When the RSS only provides a thumbnail, ask the article page for its original image.
-    page_urls = article_image_candidates(article_url)
-    page_best = _try_image_urls(page_urls, 2)
-    if page_best and (best is None or page_best[0] > best[0]):
-        best = page_best
+    # Google News RSS entries often include the publisher's original article URL in <source>.
+    page_targets = []
+    source_info = entry.get("source") or {}
+    publisher_url = source_info.get("href") if isinstance(source_info, dict) else None
+    if publisher_url:
+        parsed = urlparse(publisher_url)
+        if parsed.scheme in ("http", "https") and parsed.netloc and parsed.netloc.lower() not in ("news.google.com", "google.com"):
+            page_targets.append(publisher_url)
+    page_targets.append(article_url)
+
+    for page_target in dict.fromkeys(page_targets):
+        page_urls = article_image_candidates(page_target)
+        page_best = _try_image_urls(page_urls, 3)
+        if page_best and (best is None or page_best[0] > best[0]):
+            best = page_best
+        if best and best[0] >= 1_000_000:
+            break
+
     if best:
         return best[1]
     print("No sufficiently large news photo found; using clean branded text card.")

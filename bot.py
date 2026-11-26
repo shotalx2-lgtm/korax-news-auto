@@ -632,6 +632,7 @@ def main():
         json.dump({
             "seen": list(seen_links)[-12000:],
             "titles": list(seen_titles)[-12000:],
+            "title_texts": seen_title_texts[-12000:],
         }, file, ensure_ascii=False, indent=2)
 
     print(

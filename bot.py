@@ -24,8 +24,8 @@ SOURCES_FILE = "sources.json"
 TG = f"https://api.telegram.org/bot{BOT_TOKEN}"
 MAX_POSTS_PER_RUN = 5
 MAX_AGE_HOURS = 96
-MIN_IMAGE_WIDTH = 800
-MIN_IMAGE_HEIGHT = 450
+MIN_IMAGE_WIDTH = 320
+MIN_IMAGE_HEIGHT = 180
 HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": "Mozilla/5.0 (compatible; KORAX-NEWS/2.0; +https://github.com/shotalx2-lgtm/korax-news-auto)"})
 
@@ -327,7 +327,7 @@ def _try_image_urls(candidates, limit):
 
 def download_best_image(entry, article_url):
     rss_urls = [url for _, url in image_candidates(entry)]
-    best = _try_image_urls(rss_urls, 2)
+    best = _try_image_urls(rss_urls, 10)
     if best:
         return best[1]
 
@@ -343,7 +343,7 @@ def download_best_image(entry, article_url):
 
     for page_target in dict.fromkeys(page_targets):
         page_urls = article_image_candidates(page_target)
-        page_best = _try_image_urls(page_urls, 3)
+        page_best = _try_image_urls(page_urls, 15)
         if page_best and (best is None or page_best[0] > best[0]):
             best = page_best
         if best and best[0] >= 1_000_000:
@@ -486,23 +486,13 @@ def make_news_card(photo_bytes, title, category, source_name):
     return output
 
 def send_news(caption, photo_bytes, title, category, source_name):
-    # Send the publisher's original image bytes unchanged. Do not crop, tint,
-    # resize, add overlays, or re-encode the source photo.
-    if photo_bytes:
-        telegram_api(
-            "sendPhoto",
-            data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
-            files={"photo": ("korax-source-image.jpg", photo_bytes, "image/jpeg")},
-            timeout=45,
-        )
-        return
-
-    # Keep a branded fallback only when no usable source image exists.
-    card = make_news_card(None, title, category, source_name)
+    if not photo_bytes:
+        raise ValueError("Refusing to publish a blue/branded fallback without a real source photo.")
+    # Send the publisher's original image bytes unchanged.
     telegram_api(
         "sendPhoto",
         data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
-        files={"photo": ("korax-news.jpg", card, "image/jpeg")},
+        files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
         timeout=45,
     )
 
@@ -587,6 +577,9 @@ def main():
         link = entry.get("link", "").strip()
         category = category_for(original_title, original_summary, source.get("name", ""))
         photo_bytes = download_best_image(entry, link)
+        if not photo_bytes:
+            print(f"Skipped: no real article photo could be retrieved for {original_title[:100]!r}")
+            continue
         caption = build_caption(title_ar, summary_ar, source["name"], link, category)
         send_news(caption, photo_bytes, title_ar, category, source["name"])
 

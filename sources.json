@@ -5,22 +5,22 @@
     "football_only": true
   },
   {
-    "name": "اليوم السابع | رياضة مصرية وعالمية",
+    "name": "اليوم السابع | أخبار الكرة المصرية والعالمية",
     "url": "https://www.youm7.com/rss/SectionRss?SectionID=298",
     "football_only": false
   },
   {
-    "name": "BBC Sport | Football",
+    "name": "بي بي سي سبورت | كرة القدم",
     "url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
     "football_only": true
   },
   {
-    "name": "Sky Sports | Football",
+    "name": "سكاي سبورتس | كرة القدم",
     "url": "https://www.skysports.com/rss/11095",
     "football_only": true
   },
   {
-    "name": "The Athletic | Football",
+    "name": "ذا أثلتيك | كرة القدم",
     "url": "https://www.nytimes.com/athletic/rss/football/",
     "football_only": true
   },
@@ -30,52 +30,52 @@
     "strict_search": true
   },
   {
-    "name": "Global Men's Football News",
+    "name": "أخبار كرة القدم العالمية",
     "url": "https://news.google.com/rss/search?q=football+OR+soccer+OR+%22men%27s+football%22+-women+-NWSL+-WSL+-rugby+-NFL&hl=en-US&gl=US&ceid=US:en",
     "strict_search": true
   },
   {
-    "name": "European Leagues & UEFA Competitions",
+    "name": "الدوريات الأوروبية وبطولات يويفا",
     "url": "https://news.google.com/rss/search?q=%22Premier+League%22+OR+%22La+Liga%22+OR+%22Serie+A%22+OR+Bundesliga+OR+%22Ligue+1%22+OR+%22Champions+League%22+OR+%22Europa+League%22+-women&hl=en-US&gl=GB&ceid=GB:en",
     "strict_search": true
   },
   {
-    "name": "Arab Leagues | Gulf & North Africa",
+    "name": "الدوريات العربية والخليجية والمغاربية",
     "url": "https://news.google.com/rss/search?q=%22Saudi+Pro+League%22+OR+%22Egyptian+Premier+League%22+OR+Botola+OR+%22Qatar+Stars+League%22+OR+%22UAE+Pro+League%22+OR+%22Tunisian+Ligue%22+football+-women&hl=en-US&gl=SA&ceid=SA:en",
     "strict_search": true
   },
   {
-    "name": "Global Cups, National Teams & International Football",
+    "name": "الكؤوس العالمية والمنتخبات",
     "url": "https://news.google.com/rss/search?q=FIFA+OR+UEFA+OR+AFCON+OR+%22AFC+Champions+League%22+OR+%22Copa+America%22+OR+%22World+Cup+qualifying%22+football+-women&hl=en-US&gl=US&ceid=US:en",
     "strict_search": true
   },
   {
-    "name": "Americas & Asia Football Leagues",
+    "name": "دوريات الأمريكتين وآسيا",
     "url": "https://news.google.com/rss/search?q=MLS+OR+%22Brazilian+Serie+A%22+OR+%22Argentine+Primera%22+OR+J.League+OR+%22K+League%22+OR+%22AFC+Champions+League%22+football+-women&hl=en-US&gl=US&ceid=US:en",
     "strict_search": true
   },
   {
-    "name": "Football Italia | Serie A",
+    "name": "كرة القدم الإيطالية | الدوري الإيطالي",
     "url": "https://football-italia.net/feed/",
     "football_only": true
   },
   {
-    "name": "CaughtOffside | Transfers & Global Football",
+    "name": "أخبار الانتقالات وكرة القدم العالمية",
     "url": "https://www.caughtoffside.com/feed/",
     "football_only": true
   },
   {
-    "name": "Football365 | Football News & Transfers",
+    "name": "فوتبول 365 | أخبار الكرة والانتقالات",
     "url": "https://www.football365.com/rss",
     "football_only": true
   },
   {
-    "name": "Football FanCast | Clubs & Leagues",
+    "name": "أخبار الأندية والدوريات العالمية",
     "url": "https://www.footballfancast.com/feed/",
     "football_only": true
   },
   {
-    "name": "The Hindu | International Football",
+    "name": "ذا هندو | كرة القدم الدولية",
     "url": "https://www.thehindu.com/sport/football/feeder/default.rss",
     "football_only": true
   }

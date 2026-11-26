@@ -6,6 +6,7 @@ import re
 import time
 import glob
 import unicodedata
+import difflib
 from io import BytesIO
 from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -501,15 +502,47 @@ def load_state():
     try:
         with open(STATE_FILE, encoding="utf-8") as file:
             state = json.load(file)
-            return set(state.get("seen", [])), set(state.get("titles", []))
+            return (
+                set(state.get("seen", [])),
+                set(state.get("titles", [])),
+                list(state.get("title_texts", [])),
+            )
     except (FileNotFoundError, json.JSONDecodeError):
-        return set(), set()
+        return set(), set(), []
+
+
+def normalize_title(title):
+    value = unicodedata.normalize("NFKC", clean_text(title)).lower()
+    value = re.sub(r"[\u064B-\u065F\u0670\u0640]", "", value)
+    value = value.translate(str.maketrans({"أ":"ا","إ":"ا","آ":"ا","ى":"ي"}))
+    value = re.sub(r"https?://\S+|[^\w\u0600-\u06FF]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def title_fingerprint(title):
-    normalized = unicodedata.normalize("NFKC", title).lower()
-    normalized = re.sub(r"[^\w\u0600-\u06FF]+", "", normalized)
+    normalized = re.sub(r"\s+", "", normalize_title(title))
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def is_duplicate_title(title, known_titles):
+    candidate = normalize_title(title)
+    if not candidate:
+        return False
+    candidate_tokens = set(candidate.split())
+    for previous in known_titles:
+        previous = normalize_title(previous)
+        if not previous:
+            continue
+        if candidate == previous:
+            return True
+        # Compare both word overlap and character similarity to catch minor rewrites.
+        previous_tokens = set(previous.split())
+        union = candidate_tokens | previous_tokens
+        overlap = len(candidate_tokens & previous_tokens) / max(1, len(union))
+        similarity = difflib.SequenceMatcher(None, candidate, previous).ratio()
+        if similarity >= 0.90 or (overlap >= 0.84 and min(len(candidate_tokens), len(previous_tokens)) >= 5):
+            return True
+    return False
 
 
 def main():
@@ -519,7 +552,7 @@ def main():
     if not sources:
         raise RuntimeError("sources.json contains no RSS sources.")
 
-    seen_links, seen_titles = load_state()
+    seen_links, seen_titles, seen_title_texts = load_state()
     found = []
     healthy = 0
     total = 0
@@ -539,7 +572,7 @@ def main():
                     continue
                 link_hash = hashlib.sha256(link.split("#")[0].encode("utf-8")).hexdigest()
                 title_hash = title_fingerprint(title)
-                if link_hash in seen_links or title_hash in seen_titles:
+                if link_hash in seen_links or title_hash in seen_titles or is_duplicate_title(title, seen_title_texts):
                     continue
                 found.append((entry, source, link_hash, title_hash))
 
@@ -555,10 +588,14 @@ def main():
 
     published = 0
     failed_translations = 0
+    pending_titles = list(seen_title_texts)
     for entry, source, link_hash, title_hash in found:
+        original_title = clean_text(entry.get("title", ""))
+        if is_duplicate_title(original_title, pending_titles):
+            print(f"Skipped cross-source duplicate: {original_title[:120]}")
+            continue
         if published >= MAX_POSTS_PER_RUN:
             break
-        original_title = clean_text(entry.get("title", ""))
         original_summary = clean_text(entry.get("summary", "") or entry.get("description", ""))
         title_ar = translate_to_arabic(original_title)
         if not title_ar:
@@ -585,6 +622,8 @@ def main():
 
         seen_links.add(link_hash)
         seen_titles.add(title_hash)
+        pending_titles.append(original_title)
+        seen_title_texts.append(original_title)
         published += 1
         print(f"Published Arabic men's football news: {original_title[:140]} ({urlparse(link).netloc})")
         time.sleep(1)

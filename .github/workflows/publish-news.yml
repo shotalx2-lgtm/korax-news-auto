@@ -1,6 +1,13 @@
 name: KORAX NEWS Auto Publisher
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'bot.py'
+      - 'sources.json'
+      - 'requirements.txt'
+      - '.github/workflows/publish-news.yml'
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -35,6 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Validate Python syntax
+        run: python -m py_compile bot.py
 
       - name: Fetch and publish new football news
         env:

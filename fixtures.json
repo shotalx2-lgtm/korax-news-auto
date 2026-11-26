@@ -1,0 +1,150 @@
+[
+  {
+    "slug": "eng.1",
+    "name": "الدوري الإنجليزي الممتاز"
+  },
+  {
+    "slug": "eng.2",
+    "name": "دوري البطولة الإنجليزية"
+  },
+  {
+    "slug": "eng.fa",
+    "name": "كأس الاتحاد الإنجليزي"
+  },
+  {
+    "slug": "eng.league_cup",
+    "name": "كأس الرابطة الإنجليزية"
+  },
+  {
+    "slug": "esp.1",
+    "name": "الدوري الإسباني"
+  },
+  {
+    "slug": "esp.2",
+    "name": "دوري الدرجة الثانية الإسباني"
+  },
+  {
+    "slug": "esp.copa_del_rey",
+    "name": "كأس ملك إسبانيا"
+  },
+  {
+    "slug": "ita.1",
+    "name": "الدوري الإيطالي"
+  },
+  {
+    "slug": "ita.coppa_italia",
+    "name": "كأس إيطاليا"
+  },
+  {
+    "slug": "fra.1",
+    "name": "الدوري الفرنسي"
+  },
+  {
+    "slug": "fra.coupe_de_france",
+    "name": "كأس فرنسا"
+  },
+  {
+    "slug": "ger.1",
+    "name": "الدوري الألماني"
+  },
+  {
+    "slug": "ger.2",
+    "name": "دوري الدرجة الثانية الألماني"
+  },
+  {
+    "slug": "ger.dfb_pokal",
+    "name": "كأس ألمانيا"
+  },
+  {
+    "slug": "bra.1",
+    "name": "الدوري البرازيلي"
+  },
+  {
+    "slug": "usa.1",
+    "name": "الدوري الأمريكي MLS"
+  },
+  {
+    "slug": "ksa.1",
+    "name": "الدوري السعودي للمحترفين"
+  },
+  {
+    "slug": "uefa.champions",
+    "name": "دوري أبطال أوروبا"
+  },
+  {
+    "slug": "uefa.europa",
+    "name": "الدوري الأوروبي"
+  },
+  {
+    "slug": "uefa.europa.conf",
+    "name": "دوري المؤتمر الأوروبي"
+  },
+  {
+    "slug": "uefa.euro",
+    "name": "بطولة أمم أوروبا"
+  },
+  {
+    "slug": "uefa.euroq",
+    "name": "تصفيات أمم أوروبا"
+  },
+  {
+    "slug": "uefa.nations",
+    "name": "دوري الأمم الأوروبية"
+  },
+  {
+    "slug": "caf.nations",
+    "name": "كأس أمم إفريقيا"
+  },
+  {
+    "slug": "caf.nations_qual",
+    "name": "تصفيات كأس أمم إفريقيا"
+  },
+  {
+    "slug": "caf.champions",
+    "name": "دوري أبطال إفريقيا"
+  },
+  {
+    "slug": "caf.confed",
+    "name": "كأس الكونفدرالية الإفريقية"
+  },
+  {
+    "slug": "fifa.world",
+    "name": "كأس العالم"
+  },
+  {
+    "slug": "fifa.worldq",
+    "name": "تصفيات كأس العالم"
+  },
+  {
+    "slug": "fifa.worldq.caf",
+    "name": "تصفيات كأس العالم - إفريقيا"
+  },
+  {
+    "slug": "fifa.worldq.uefa",
+    "name": "تصفيات كأس العالم - أوروبا"
+  },
+  {
+    "slug": "conmebol.america",
+    "name": "كوبا أمريكا"
+  },
+  {
+    "slug": "conmebol.libertadores",
+    "name": "كوبا ليبرتادوريس"
+  },
+  {
+    "slug": "concacaf.gold",
+    "name": "الكأس الذهبية"
+  },
+  {
+    "slug": "concacaf.champions",
+    "name": "كأس أبطال الكونكاكاف"
+  },
+  {
+    "slug": "afc.champions",
+    "name": "دوري أبطال آسيا للنخبة"
+  },
+  {
+    "slug": "afc.asian.cup",
+    "name": "كأس آسيا"
+  }
+]

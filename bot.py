@@ -429,7 +429,7 @@ def build_caption(title, summary, source_name, link, category):
         f"🏆 <b>القسم:</b> {html.escape(category)}",
         f"📰 <b>المصدر:</b> {html.escape(source_name)}",
         f'🔗 <a href="{html.escape(link, quote=True)}">اقرأ التفاصيل من المصدر</a>',
-        "⚫ <b>KORAX NEWS</b>  🟢",
+        "🔷 <b>KORAX NEWS</b>  ◻️",
     ])
     caption = "\n\n".join(parts)
     if len(caption) > 1000 and safe_summary:
@@ -441,46 +441,49 @@ def build_caption(title, summary, source_name, link, category):
 
 def make_news_card(photo_bytes, title, category, source_name):
     width, height = 1200, 675
-    lime = (190, 255, 0)
-    background = Image.new("RGB", (width, height), (4, 6, 6))
+    top = (18, 48, 115)
+    bottom = (42, 126, 198)
+    cyan = (92, 222, 255)
+    background = Image.new("RGB", (width, height))
+    pixels = background.load()
+    for y in range(height):
+        ratio = y / max(1, height - 1)
+        color = tuple(int(top[i] * (1 - ratio) + bottom[i] * ratio) for i in range(3))
+        for x in range(width):
+            pixels[x, y] = color
+
     if photo_bytes:
         try:
             photo = Image.open(BytesIO(photo_bytes)).convert("RGB")
             photo = ImageOps.fit(photo, (width, height), method=Image.Resampling.LANCZOS, centering=(0.5, 0.42))
-            background.paste(photo, (0, 0))
+            background = photo
+            tint = Image.new("RGBA", (width, height), (17, 54, 125, 118))
+            background = Image.alpha_composite(background.convert("RGBA"), tint).convert("RGB")
         except Exception as exc:
             print("Could not render source image:", repr(exc))
 
-    overlay = Image.new("RGBA", (width, 300), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
-    for y in range(300):
-        alpha = int(245 * (y / 299) ** 1.15)
-        overlay_draw.line((0, y, width, y), fill=(3, 6, 5, alpha))
-    background.paste(overlay, (0, 375), overlay)
-
     draw = ImageDraw.Draw(background)
-    draw.rectangle((0, 0, width, 11), fill=lime)
-    draw.rounded_rectangle((48, 38, 342, 108), radius=20, fill=(4, 7, 6))
-    draw.rounded_rectangle((48, 38, 342, 108), radius=20, outline=lime, width=3)
-    draw.text((76, 52), "KORAX NEWS", font=_font(36, True), fill=lime)
+    draw.rectangle((0, 0, width, 12), fill=cyan)
+    draw.rounded_rectangle((48, 36, 390, 112), radius=22, fill=(27, 76, 145), outline=(175, 235, 255), width=2)
+    draw.text((76, 53), "KORAX NEWS", font=_font(38, True), fill=(255, 255, 255))
+    draw.rounded_rectangle((48, 386, 1152, 625), radius=28, fill=(16, 54, 119), outline=(125, 219, 250), width=3)
+    draw.rounded_rectangle((70, 405, 310, 458), radius=15, fill=cyan)
+    draw.text((190, 431), rtl(category), font=_font(23, True), fill=(15, 49, 105), anchor="mm")
 
-    draw.rounded_rectangle((48, 405, 265, 452), radius=14, fill=lime)
-    draw.text((156, 411), rtl(category), font=_font(22, True), fill=(5, 8, 4), anchor="mm")
     title_font = _font(43, True)
-    lines = wrap_rtl(draw, title or "أخبار كرة القدم", title_font, 1080)
-    y = 470
+    lines = wrap_rtl(draw, title or "أخبار كرة القدم", title_font, 1040)
+    y = 478
     for line in lines:
-        draw.text((1148, y), rtl(line), font=title_font, fill=(250, 252, 247), anchor="ra")
-        y += 53
+        draw.text((1124, y), rtl(line), font=title_font, fill=(255, 255, 255), anchor="ra")
+        y += 50
 
-    draw.line((48, 630, 1152, 630), fill=lime, width=2)
-    draw.text((1150, 642), "KORAX • FOOTBALL", font=_font(20, True), fill=(205, 220, 190), anchor="ra")
-    draw.text((50, 642), "FOOTBALL NEWS  •  KORAX", font=_font(19, True), fill=(210, 216, 205))
+    draw.line((48, 640, 1152, 640), fill=cyan, width=2)
+    draw.text((1150, 647), "KORAX • FOOTBALL", font=_font(19, True), fill=(234, 248, 255), anchor="ra")
+    draw.text((50, 647), "GLOBAL FOOTBALL NEWS", font=_font(18, True), fill=(234, 248, 255))
     output = BytesIO()
     background.save(output, format="JPEG", quality=95, optimize=True, progressive=True, subsampling=0)
     output.seek(0)
     return output
-
 
 def send_news(caption, photo_bytes, title, category, source_name):
     card = make_news_card(photo_bytes, title, category, source_name)

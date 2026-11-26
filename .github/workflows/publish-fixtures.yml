@@ -1,0 +1,67 @@
+name: KORAX Match Center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fixtures.py'
+      - 'fixtures.json'
+      - 'test_fixtures.py'
+      - '.github/workflows/publish-fixtures.yml'
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: korax-publishers
+  cancel-in-progress: false
+
+jobs:
+  publish-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Arabic fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-core
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate syntax
+        run: python -m py_compile bot.py fixtures.py
+
+      - name: Test fixture parsing
+        run: python -m unittest -v test_fixtures.py
+
+      - name: Fetch fixtures and publish match cards
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+        run: python fixtures.py
+
+      - name: Save duplicate-prevention state
+        run: |
+          if ! git diff --quiet -- seen_matches.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen_matches.json
+            git commit -m "Update published match state"
+            git pull --rebase origin main
+            git push
+          fi

@@ -7,6 +7,10 @@ on:
       - 'bot.py'
       - 'sources.json'
       - 'requirements.txt'
+      - 'fixtures.py'
+      - 'fixtures.json'
+      - 'test_fixtures.py'
+      - '.github/workflows/publish-fixtures.yml'
       - '.github/workflows/publish-news.yml'
   schedule:
     - cron: "*/5 * * * *"
@@ -16,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: korax-news-publisher
+  group: korax-publishers
   cancel-in-progress: false
 
 jobs:

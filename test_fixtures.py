@@ -1,0 +1,48 @@
+import unittest
+from datetime import datetime, timezone
+
+from fixtures import normalize_event, fixture_key, format_cairo_date
+
+
+class FixtureParsingTests(unittest.TestCase):
+    def sample_event(self):
+        return {
+            "id": "sample-123",
+            "date": "2026-11-27T20:00:00Z",
+            "season": {"year": 2026, "type": {"name": "League Phase"}},
+            "competitions": [{
+                "altGameNote": "UEFA Champions League, League Phase",
+                "status": {"type": {"state": "pre"}},
+                "venue": {"fullName": "Example Stadium", "address": {"city": "Cairo", "country": "Egypt"}},
+                "competitors": [
+                    {"homeAway": "home", "form": "WWDLW", "team": {"displayName": "Home FC", "logo": "https://example.com/home.png"}},
+                    {"homeAway": "away", "form": "LWWDW", "team": {"displayName": "Away FC", "logo": "https://example.com/away.png"}}
+                ]
+            }]
+        }
+
+    def test_normalize_event_preserves_badges_and_teams(self):
+        normalized = normalize_event({"slug": "uefa.champions", "name": "دوري أبطال أوروبا"},
+                                     "UEFA Champions League", self.sample_event())
+        self.assertEqual(normalized["home"], "Home FC")
+        self.assertEqual(normalized["away"], "Away FC")
+        self.assertTrue(normalized["home_logo"].endswith("home.png"))
+        self.assertEqual(normalized["stage"], "League Phase")
+        self.assertIn("Example Stadium", normalized["venue"])
+
+    def test_reschedule_changes_deduplication_key(self):
+        league = {"slug": "eng.1", "name": "الدوري الإنجليزي"}
+        first = normalize_event(league, "English Premier League", self.sample_event())
+        changed = self.sample_event()
+        changed["date"] = "2026-11-28T20:00:00Z"
+        second = normalize_event(league, "English Premier League", changed)
+        self.assertNotEqual(fixture_key(first), fixture_key(second))
+
+    def test_cairo_time_conversion(self):
+        result = format_cairo_date(datetime(2026, 11, 27, 20, 0, tzinfo=timezone.utc))
+        self.assertIn("27 نوفمبر 2026", result["date"])
+        self.assertIn("10:00 م", result["time"])
+
+
+if __name__ == "__main__":
+    unittest.main()

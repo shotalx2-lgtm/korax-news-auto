@@ -1,14 +1,62 @@
 [
   {
-    "name": "BBC Sport",
-    "url": "https://feeds.bbci.co.uk/sport/football/rss.xml"
+    "name": "كووورة | أخبار كرة القدم العالمية",
+    "url": "https://feeds.footballco.com/kooora/feed/6p5bsxot7te8yick",
+    "football_only": true
   },
   {
-    "name": "Sky Sports",
-    "url": "https://www.skysports.com/rss/11095"
+    "name": "اليوم السابع | رياضة مصرية وعالمية",
+    "url": "https://www.youm7.com/rss/SectionRss?SectionID=298",
+    "football_only": false
   },
   {
-    "name": "The Guardian",
-    "url": "https://www.theguardian.com/football/rss"
+    "name": "BBC Sport | Football",
+    "url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
+    "football_only": true
+  },
+  {
+    "name": "Sky Sports | Football",
+    "url": "https://www.skysports.com/rss/11095",
+    "football_only": true
+  },
+  {
+    "name": "The Guardian | Football",
+    "url": "https://www.theguardian.com/football/rss",
+    "football_only": true
+  },
+  {
+    "name": "The Athletic | Football",
+    "url": "https://www.nytimes.com/athletic/rss/football/",
+    "football_only": true
+  },
+  {
+    "name": "أخبار كرة القدم العربية والعالمية",
+    "url": "https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D9%85%D9%86%D8%AA%D8%AE%D8%A8+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA+-%D8%B3%D9%8A%D8%AF%D8%A7%D8%AA+-%D9%86%D8%B3%D8%A7%D8%A6%D9%8A+-%D8%A7%D9%84%D8%B3%D9%84%D8%A9+-%D8%AA%D9%86%D8%B3&hl=ar&gl=EG&ceid=EG:ar",
+    "football_only": true
+  },
+  {
+    "name": "Global Men's Football News",
+    "url": "https://news.google.com/rss/search?q=football+OR+soccer+OR+%22men%27s+football%22+-women+-NWSL+-WSL+-rugby+-NFL&hl=en-US&gl=US&ceid=US:en",
+    "football_only": true
+  },
+  {
+    "name": "European Leagues & UEFA Competitions",
+    "url": "https://news.google.com/rss/search?q=%22Premier+League%22+OR+%22La+Liga%22+OR+%22Serie+A%22+OR+Bundesliga+OR+%22Ligue+1%22+OR+%22Champions+League%22+OR+%22Europa+League%22+-women&hl=en-US&gl=GB&ceid=GB:en",
+    "football_only": true
+  },
+  {
+    "name": "Arab Leagues | Gulf & North Africa",
+    "url": "https://news.google.com/rss/search?q=%22Saudi+Pro+League%22+OR+%22Egyptian+Premier+League%22+OR+Botola+OR+%22Qatar+Stars+League%22+OR+%22UAE+Pro+League%22+OR+%22Tunisian+Ligue%22+football+-women&hl=en-US&gl=SA&ceid=SA:en",
+    "football_only": true
+  },
+  {
+    "name": "Global Cups, National Teams & International Football",
+    "url": "https://news.google.com/rss/search?q=FIFA+OR+UEFA+OR+AFCON+OR+%22AFC+Champions+League%22+OR+%22Copa+America%22+OR+%22World+Cup+qualifying%22+football+-women&hl=en-US&gl=US&ceid=US:en",
+    "football_only": true
+  },
+  {
+    "name": "Americas & Asia Football Leagues",
+    "url": "https://news.google.com/rss/search?q=MLS+OR+%22Brazilian+Serie+A%22+OR+%22Argentine+Primera%22+OR+J.League+OR+%22K+League%22+OR+%22AFC+Champions+League%22+football+-women&hl=en-US&gl=US&ceid=US:en",
+    "football_only": true
   }
 ]

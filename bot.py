@@ -37,7 +37,7 @@ WOMEN_PATTERN = re.compile(
 )
 OTHER_SPORT_PATTERN = re.compile(
     r"كرة السلة|كرة اليد|كرة الطائرة|إسكواش|اسكواش|تنس|كريكيت|رجبي|هوكي|فورمولا|"
-    r"\b(nba|wnba|nfl|mlb|nhl|cricket|rugby|tennis|volleyball|squash|"
+    r"\b(nba|wnba|nfl|mlb|nhl|cricket|rugby|tennis|volleyball|squash|american football|gridiron|college football|"
     r"formula 1|f1|golf|badminton|handball|boxing|ufc)\b",
     re.IGNORECASE,
 )
@@ -47,8 +47,8 @@ FOOTBALL_PATTERN = re.compile(
     r"\b(football|soccer|premier league|la liga|serie a|bundesliga|ligue 1|"
     r"champions league|europa league|conference league|fa cup|copa del rey|"
     r"copa america|world cup|club world cup|uefa|fifa|afcon|afc|transfer|"
-    r"goalkeeper|striker|midfielder|defender|footballer|soccer|matchday|"
-    r"football club|fc | vs )\b",
+    r"goalkeeper|striker|midfielder|defender|footballer|matchday|"
+    r"football club)\b",
     re.IGNORECASE,
 )
 PROMO_PATTERN = re.compile(
@@ -261,7 +261,7 @@ def _try_image_urls(candidates, limit):
 def download_best_image(entry, article_url):
     rss_urls = [url for _, url in image_candidates(entry)]
     best = _try_image_urls(rss_urls, 2)
-    if best and best[0] >= 1_000_000:
+    if best:
         return best[1]
 
     # When the RSS only provides a thumbnail, ask the article page for its original image.
@@ -395,7 +395,7 @@ def make_news_card(photo_bytes, title, category, source_name):
 
     draw.line((48, 630, 1152, 630), fill=lime, width=2)
     draw.text((1150, 642), "KORAX • FOOTBALL", font=_font(20, True), fill=(205, 220, 190), anchor="ra")
-    draw.text((50, 642), "مصدر الخبر: " + source_name[:28], font=_font(19, False), fill=(210, 216, 205))
+    draw.text((50, 642), "FOOTBALL NEWS  •  KORAX", font=_font(19, True), fill=(210, 216, 205))
     output = BytesIO()
     background.save(output, format="JPEG", quality=95, optimize=True, progressive=True, subsampling=0)
     output.seek(0)

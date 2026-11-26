@@ -486,7 +486,19 @@ def make_news_card(photo_bytes, title, category, source_name):
     return output
 
 def send_news(caption, photo_bytes, title, category, source_name):
-    card = make_news_card(photo_bytes, title, category, source_name)
+    # Send the publisher's original image bytes unchanged. Do not crop, tint,
+    # resize, add overlays, or re-encode the source photo.
+    if photo_bytes:
+        telegram_api(
+            "sendPhoto",
+            data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
+            files={"photo": ("korax-source-image.jpg", photo_bytes, "image/jpeg")},
+            timeout=45,
+        )
+        return
+
+    # Keep a branded fallback only when no usable source image exists.
+    card = make_news_card(None, title, category, source_name)
     telegram_api(
         "sendPhoto",
         data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},

@@ -188,7 +188,7 @@ def _download_logo(url):
         if len(raw) > 5 * 1024 * 1024:
             return None
         image = Image.open(BytesIO(raw)).convert("RGBA")
-        image.thumbnail((184, 184), Image.Resampling.LANCZOS)
+        image.thumbnail((160, 160), Image.Resampling.LANCZOS)
         LOGO_CACHE[url] = image
         return image
     except Exception as exc:

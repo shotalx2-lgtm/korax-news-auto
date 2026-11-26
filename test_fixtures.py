@@ -30,6 +30,22 @@ class FixtureParsingTests(unittest.TestCase):
         self.assertEqual(normalized["stage"], "League Phase")
         self.assertIn("Example Stadium", normalized["venue"])
 
+    def test_logo_array_fallback_and_final_status(self):
+        event = self.sample_event()
+        event["competitions"][0]["competitors"][0]["team"].pop("logo")
+        event["competitions"][0]["competitors"][0]["team"]["logos"] = [
+            {"href": "https://example.com/home-badge.png"}
+        ]
+        event["competitions"][0]["status"]["type"] = {
+            "state": "post", "name": "STATUS_FINAL"
+        }
+        normalized = normalize_event(
+            {"slug": "uefa.champions", "name": "دوري أبطال أوروبا"},
+            "UEFA Champions League", event
+        )
+        self.assertEqual(normalized["home_logo"], "https://example.com/home-badge.png")
+        self.assertEqual(normalized["status"], "post")
+
     def test_reschedule_changes_deduplication_key(self):
         league = {"slug": "eng.1", "name": "الدوري الإنجليزي"}
         first = normalize_event(league, "English Premier League", self.sample_event())

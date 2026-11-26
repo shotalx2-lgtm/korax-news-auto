@@ -24,8 +24,8 @@ SOURCES_FILE = "sources.json"
 TG = f"https://api.telegram.org/bot{BOT_TOKEN}"
 MAX_POSTS_PER_RUN = 5
 MAX_AGE_HOURS = 96
-MIN_IMAGE_WIDTH = 640
-MIN_IMAGE_HEIGHT = 360
+MIN_IMAGE_WIDTH = 800
+MIN_IMAGE_HEIGHT = 450
 HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": "Mozilla/5.0 (compatible; KORAX-NEWS/2.0; +https://github.com/shotalx2-lgtm/korax-news-auto)"})
 
@@ -232,19 +232,15 @@ def article_image_candidates(article_url):
     return list(dict.fromkeys(candidates))
 
 
-def download_best_image(entry, article_url):
-    candidates = image_candidates(entry)
-    # RSS thumbnails are often tiny. Try the article's original Open Graph image too.
-    candidates.extend((0, url) for url in article_image_candidates(article_url))
-    candidates.sort(key=lambda item: item[0], reverse=True)
-    checked = set()
+def _try_image_urls(candidates, limit):
     best = None
-    for _, url in candidates[:7]:
+    checked = set()
+    for url in candidates[:limit]:
         if not url or url in checked:
             continue
         checked.add(url)
         try:
-            response = HTTP.get(url, timeout=12)
+            response = HTTP.get(url, timeout=8)
             response.raise_for_status()
             raw = response.content
             if len(raw) > 12 * 1024 * 1024:
@@ -259,11 +255,24 @@ def download_best_image(entry, article_url):
                 best = (area, raw)
         except Exception as exc:
             print("Image candidate failed:", repr(exc))
+    return best
+
+
+def download_best_image(entry, article_url):
+    rss_urls = [url for _, url in image_candidates(entry)]
+    best = _try_image_urls(rss_urls, 2)
+    if best and best[0] >= 1_000_000:
+        return best[1]
+
+    # When the RSS only provides a thumbnail, ask the article page for its original image.
+    page_urls = article_image_candidates(article_url)
+    page_best = _try_image_urls(page_urls, 2)
+    if page_best and (best is None or page_best[0] > best[0]):
+        best = page_best
     if best:
         return best[1]
     print("No sufficiently large news photo found; using clean branded text card.")
     return None
-
 
 def _font(size, bold=False):
     patterns = [

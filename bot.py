@@ -37,8 +37,9 @@ WOMEN_PATTERN = re.compile(
 )
 OTHER_SPORT_PATTERN = re.compile(
     r"كرة السلة|كرة اليد|كرة الطائرة|إسكواش|اسكواش|تنس|كريكيت|رجبي|هوكي|فورمولا|"
-    r"\b(nba|wnba|nfl|mlb|nhl|cricket|rugby|tennis|volleyball|squash|american football|gridiron|college football|"
-    r"formula 1|f1|golf|badminton|handball|boxing|ufc)\b",
+    r"\b(nba|wnba|nfl|mlb|nhl|cricket|rugby|tennis|volleyball|squash|"
+    r"formula 1|f1|golf|badminton|handball|boxing|ufc|american football|"
+    r"gridiron|college football|high school football|ncaa football|varsity football)\b",
     re.IGNORECASE,
 )
 FOOTBALL_PATTERN = re.compile(
@@ -51,6 +52,25 @@ FOOTBALL_PATTERN = re.compile(
     r"football club)\b",
     re.IGNORECASE,
 )
+STRICT_ASSOCIATION_PATTERN = re.compile(
+    r"كرة القدم|دوري أبطال|الدوري الإنجليزي|الدوري الإسباني|الدوري الإيطالي|"
+    r"الدوري الألماني|الدوري الفرنسي|الدوري المصري|الدوري السعودي|دوري روشن|"
+    r"كأس العالم|كأس أمم|منتخب|نادي الأهلي|الأهلي|الزمالك|بيراميدز|الهلال|النصر|"
+    r"الاتحاد|الشباب|الرجاء|الوداد|الترجي|الأفريقي|السد|الدحيل|"
+    r"\b(soccer|association football|men's football|premier league|la liga|"
+    r"serie a|bundesliga|ligue 1|champions league|europa league|conference league|"
+    r"fa cup|copa del rey|copa america|club world cup|uefa|fifa|afcon|"
+    r"afc champions|mls|j\.?league|k league|brazilian serie|argentine primera|"
+    r"saudi pro league|egyptian premier|botola|qatar stars|uae pro league|"
+    r"football club|manchester united|manchester city|liverpool|arsenal|chelsea|"
+    r"real madrid|barcelona|atletico madrid|bayern|borussia dortmund|paris saint|"
+    r"juventus|inter milan|ac milan|napoli|roma|benfica|porto|ajax|celtic|rangers|"
+    r"al hilal|al nassr|al ahly|zamalek|haaland|salah|mbappe|vinicius|bellingham|"
+    r"ronaldo|messi|de bruyne|yamal|kane|neymar|saka|odegaard)\b",
+    re.IGNORECASE,
+)
+
+
 PROMO_PATTERN = re.compile(
     r"sign up for our newsletter|subscribe to our newsletter|daily newsletter|"
     r"newsletter sign|listen to our podcast|subscribe now",
@@ -150,10 +170,11 @@ def is_mens_football(entry, source):
     sample = f"{title} {summary[:500]}"
     if WOMEN_PATTERN.search(sample) or OTHER_SPORT_PATTERN.search(sample) or PROMO_PATTERN.search(sample):
         return False
+    if source.get("strict_search", False):
+        return bool(STRICT_ASSOCIATION_PATTERN.search(sample))
     if source.get("football_only", False):
         return True
     return bool(FOOTBALL_PATTERN.search(sample))
-
 
 def parse_published(entry):
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")

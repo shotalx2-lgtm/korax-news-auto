@@ -219,18 +219,64 @@ def article_image_candidates(article_url):
     try:
         response = HTTP.get(article_url, timeout=10, allow_redirects=True)
         response.raise_for_status()
-        page = response.text[:1_500_000]
+        page_url = response.url
+        page = response.text[:2_000_000]
+        print(f"Article page resolved to {urlparse(page_url).netloc}.")
     except Exception as exc:
         print("Article image metadata unavailable:", repr(exc))
         return []
-    candidates = []
-    for tag in re.findall(r"<meta\b[^>]*>", page, flags=re.IGNORECASE):
-        prop = re.search(r"(?:property|name)=[\"']([^\"']+)", tag, flags=re.IGNORECASE)
-        content = re.search(r"content=[\"']([^\"']+)", tag, flags=re.IGNORECASE)
-        if prop and content and prop.group(1).lower() in ("og:image", "og:image:url", "twitter:image", "twitter:image:src"):
-            candidates.append(urljoin(article_url, html.unescape(content.group(1))))
-    return list(dict.fromkeys(candidates))
 
+    scored = []
+    for tag in re.findall(r"<meta\b[^>]*>", page, flags=re.IGNORECASE):
+        attrs = dict(
+            (key.lower(), html.unescape(value))
+            for key, value in re.findall(r"([a-zA-Z_:.-]+)\s*=\s*['\"]([^'\"]*)['\"]", tag)
+        )
+        prop = (attrs.get("property") or attrs.get("name") or "").lower()
+        if prop in ("og:image", "og:image:url", "twitter:image", "twitter:image:src") and attrs.get("content"):
+            scored.append((1_000_000, urljoin(page_url, attrs["content"])))
+
+    for tag in re.findall(r"<link\b[^>]*>", page, flags=re.IGNORECASE):
+        attrs = dict(
+            (key.lower(), html.unescape(value))
+            for key, value in re.findall(r"([a-zA-Z_:.-]+)\s*=\s*['\"]([^'\"]*)['\"]", tag)
+        )
+        if "image_src" in (attrs.get("rel") or "").lower() and attrs.get("href"):
+            scored.append((900_000, urljoin(page_url, attrs["href"])))
+
+    # Some publishers keep the full image in srcset or lazy-loading attributes.
+    for tag in re.findall(r"<(?:img|source)\b[^>]*>", page, flags=re.IGNORECASE):
+        attrs = dict(
+            (key.lower(), html.unescape(value))
+            for key, value in re.findall(r"([a-zA-Z_:.-]+)\s*=\s*['\"]([^'\"]*)['\"]", tag)
+        )
+        for key in ("data-original", "data-lazy-src", "data-src", "src"):
+            if attrs.get(key):
+                scored.append((0, urljoin(page_url, attrs[key])))
+        for key in ("srcset", "data-srcset"):
+            if attrs.get(key):
+                for candidate in attrs[key].split(","):
+                    bits = candidate.strip().split()
+                    if not bits:
+                        continue
+                    width = 0
+                    if len(bits) > 1 and bits[-1].lower().endswith("w"):
+                        try:
+                            width = int(bits[-1][:-1])
+                        except ValueError:
+                            width = 0
+                    scored.append((width * width, urljoin(page_url, bits[0])))
+
+    # JSON-LD article objects commonly expose the publisher's original image URL.
+    for match in re.findall(r'"image"\s*:\s*"([^"]+)"', page):
+        scored.append((0, urljoin(page_url, match.replace("\\/", "/"))))
+
+    unique = {}
+    for score, url in scored:
+        unique[url] = max(score, unique.get(url, 0))
+    results = sorted(unique.items(), key=lambda item: item[1], reverse=True)
+    print(f"Found {len(results)} candidate article images.")
+    return [url for url, _ in results]
 
 def _try_image_urls(candidates, limit):
     best = None

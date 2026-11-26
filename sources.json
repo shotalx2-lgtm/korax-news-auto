@@ -1,82 +1,52 @@
 [
   {
-    "name": "كووورة | أخبار كرة القدم العالمية",
+    "name": "كووورة | أخبار كرة القدم العربية والعالمية",
     "url": "https://feeds.footballco.com/kooora/feed/6p5bsxot7te8yick",
     "football_only": true
   },
   {
-    "name": "اليوم السابع | أخبار الكرة المصرية والعالمية",
+    "name": "اليوم السابع | الكرة المصرية والعربية",
     "url": "https://www.youm7.com/rss/SectionRss?SectionID=298",
-    "football_only": false
-  },
-  {
-    "name": "بي بي سي سبورت | كرة القدم",
-    "url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
     "football_only": true
   },
   {
-    "name": "سكاي سبورتس | كرة القدم",
-    "url": "https://www.skysports.com/rss/11095",
+    "name": "الإخبارية | أخبار كرة القدم",
+    "url": "https://alikhbariya.net/feeds/topics/football.xml",
     "football_only": true
   },
   {
-    "name": "ذا أثلتيك | كرة القدم",
-    "url": "https://www.nytimes.com/athletic/rss/football/",
-    "football_only": true
-  },
-  {
-    "name": "أخبار كرة القدم العربية والعالمية",
-    "url": "https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D9%85%D9%86%D8%AA%D8%AE%D8%A8+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA+-%D8%B3%D9%8A%D8%AF%D8%A7%D8%AA+-%D9%86%D8%B3%D8%A7%D8%A6%D9%8A+-%D8%A7%D9%84%D8%B3%D9%84%D8%A9+-%D8%AA%D9%86%D8%B3&hl=ar&gl=EG&ceid=EG:ar",
+    "name": "يلا كورة | أخبار الكرة المصرية والعالمية",
+    "url": "https://news.google.com/rss/search?q=site%3Ayallakora.com+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%29&hl=ar&gl=EG&ceid=EG%3Aar",
     "strict_search": true
   },
   {
-    "name": "أخبار كرة القدم العالمية",
-    "url": "https://news.google.com/rss/search?q=football+OR+soccer+OR+%22men%27s+football%22+-women+-NWSL+-WSL+-rugby+-NFL&hl=en-US&gl=US&ceid=US:en",
+    "name": "في الجول | أخبار كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Afilgoal.com+%28%D9%83%D8%B1%D8%A9+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%84%D8%A3%D9%87%D9%84%D9%8A+OR+%D8%A7%D9%84%D8%B2%D9%85%D8%A7%D9%84%D9%83%29&hl=ar&gl=EG&ceid=EG%3Aar",
     "strict_search": true
   },
   {
-    "name": "الدوريات الأوروبية وبطولات يويفا",
-    "url": "https://news.google.com/rss/search?q=%22Premier+League%22+OR+%22La+Liga%22+OR+%22Serie+A%22+OR+Bundesliga+OR+%22Ligue+1%22+OR+%22Champions+League%22+OR+%22Europa+League%22+-women&hl=en-US&gl=GB&ceid=GB:en",
+    "name": "العربية | رياضة وكرة قدم",
+    "url": "https://news.google.com/rss/search?q=site%3Aalarabiya.net+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D9%85%D9%86%D8%AA%D8%AE%D8%A8%29&hl=ar&gl=SA&ceid=SA%3Aar",
     "strict_search": true
   },
   {
-    "name": "الدوريات العربية والخليجية والمغاربية",
-    "url": "https://news.google.com/rss/search?q=%22Saudi+Pro+League%22+OR+%22Egyptian+Premier+League%22+OR+Botola+OR+%22Qatar+Stars+League%22+OR+%22UAE+Pro+League%22+OR+%22Tunisian+Ligue%22+football+-women&hl=en-US&gl=SA&ceid=SA:en",
+    "name": "سكاي نيوز عربية | رياضة كرة القدم",
+    "url": "https://news.google.com/rss/search?q=site%3Askynewsarabia.com+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%29&hl=ar&gl=AE&ceid=AE%3Aar",
     "strict_search": true
   },
   {
-    "name": "الكؤوس العالمية والمنتخبات",
-    "url": "https://news.google.com/rss/search?q=FIFA+OR+UEFA+OR+AFCON+OR+%22AFC+Champions+League%22+OR+%22Copa+America%22+OR+%22World+Cup+qualifying%22+football+-women&hl=en-US&gl=US&ceid=US:en",
+    "name": "سبورت 360 | أخبار الكرة العربية والعالمية",
+    "url": "https://news.google.com/rss/search?q=site%3Aarabic.sport360.com+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA%29&hl=ar&gl=AE&ceid=AE%3Aar",
     "strict_search": true
   },
   {
-    "name": "دوريات الأمريكتين وآسيا",
-    "url": "https://news.google.com/rss/search?q=MLS+OR+%22Brazilian+Serie+A%22+OR+%22Argentine+Primera%22+OR+J.League+OR+%22K+League%22+OR+%22AFC+Champions+League%22+football+-women&hl=en-US&gl=US&ceid=US:en",
+    "name": "الرياضية السعودية | أخبار الكرة السعودية",
+    "url": "https://news.google.com/rss/search?q=site%3Aarriyadiyah.com+%28%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%84%D9%87%D9%84%D8%A7%D9%84+OR+%D8%A7%D9%84%D9%86%D8%B5%D8%B1+OR+%D8%A7%D9%84%D8%A7%D8%AA%D8%AD%D8%A7%D8%AF%29&hl=ar&gl=SA&ceid=SA%3Aar",
     "strict_search": true
   },
   {
-    "name": "كرة القدم الإيطالية | الدوري الإيطالي",
-    "url": "https://football-italia.net/feed/",
-    "football_only": true
-  },
-  {
-    "name": "أخبار الانتقالات وكرة القدم العالمية",
-    "url": "https://www.caughtoffside.com/feed/",
-    "football_only": true
-  },
-  {
-    "name": "فوتبول 365 | أخبار الكرة والانتقالات",
-    "url": "https://www.football365.com/rss",
-    "football_only": true
-  },
-  {
-    "name": "أخبار الأندية والدوريات العالمية",
-    "url": "https://www.footballfancast.com/feed/",
-    "football_only": true
-  },
-  {
-    "name": "ذا هندو | كرة القدم الدولية",
-    "url": "https://www.thehindu.com/sport/football/feeder/default.rss",
-    "football_only": true
+    "name": "أخبار 24 | كرة القدم السعودية",
+    "url": "https://news.google.com/rss/search?q=site%3Aakhbaar24.com+%28%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D8%A7%D9%84%D9%87%D9%84%D8%A7%D9%84+OR+%D8%A7%D9%84%D9%86%D8%B5%D8%B1%29&hl=ar&gl=SA&ceid=SA%3Aar",
+    "strict_search": true
   }
 ]

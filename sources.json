@@ -20,11 +20,6 @@
     "football_only": true
   },
   {
-    "name": "The Guardian | Football",
-    "url": "https://www.theguardian.com/football/rss",
-    "football_only": true
-  },
-  {
     "name": "The Athletic | Football",
     "url": "https://www.nytimes.com/athletic/rss/football/",
     "football_only": true
@@ -57,6 +52,11 @@
   {
     "name": "Americas & Asia Football Leagues",
     "url": "https://news.google.com/rss/search?q=MLS+OR+%22Brazilian+Serie+A%22+OR+%22Argentine+Primera%22+OR+J.League+OR+%22K+League%22+OR+%22AFC+Champions+League%22+football+-women&hl=en-US&gl=US&ceid=US:en",
+    "football_only": true
+  },
+  {
+    "name": "Football Italia | Serie A",
+    "url": "https://football-italia.net/feed/",
     "football_only": true
   }
 ]

@@ -27,36 +27,56 @@
   {
     "name": "أخبار كرة القدم العربية والعالمية",
     "url": "https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85+OR+%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A+OR+%D9%85%D9%86%D8%AA%D8%AE%D8%A8+OR+%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84%D8%A7%D8%AA+-%D8%B3%D9%8A%D8%AF%D8%A7%D8%AA+-%D9%86%D8%B3%D8%A7%D8%A6%D9%8A+-%D8%A7%D9%84%D8%B3%D9%84%D8%A9+-%D8%AA%D9%86%D8%B3&hl=ar&gl=EG&ceid=EG:ar",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "Global Men's Football News",
     "url": "https://news.google.com/rss/search?q=football+OR+soccer+OR+%22men%27s+football%22+-women+-NWSL+-WSL+-rugby+-NFL&hl=en-US&gl=US&ceid=US:en",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "European Leagues & UEFA Competitions",
     "url": "https://news.google.com/rss/search?q=%22Premier+League%22+OR+%22La+Liga%22+OR+%22Serie+A%22+OR+Bundesliga+OR+%22Ligue+1%22+OR+%22Champions+League%22+OR+%22Europa+League%22+-women&hl=en-US&gl=GB&ceid=GB:en",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "Arab Leagues | Gulf & North Africa",
     "url": "https://news.google.com/rss/search?q=%22Saudi+Pro+League%22+OR+%22Egyptian+Premier+League%22+OR+Botola+OR+%22Qatar+Stars+League%22+OR+%22UAE+Pro+League%22+OR+%22Tunisian+Ligue%22+football+-women&hl=en-US&gl=SA&ceid=SA:en",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "Global Cups, National Teams & International Football",
     "url": "https://news.google.com/rss/search?q=FIFA+OR+UEFA+OR+AFCON+OR+%22AFC+Champions+League%22+OR+%22Copa+America%22+OR+%22World+Cup+qualifying%22+football+-women&hl=en-US&gl=US&ceid=US:en",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "Americas & Asia Football Leagues",
     "url": "https://news.google.com/rss/search?q=MLS+OR+%22Brazilian+Serie+A%22+OR+%22Argentine+Primera%22+OR+J.League+OR+%22K+League%22+OR+%22AFC+Champions+League%22+football+-women&hl=en-US&gl=US&ceid=US:en",
-    "football_only": true
+    "strict_search": true
   },
   {
     "name": "Football Italia | Serie A",
     "url": "https://football-italia.net/feed/",
+    "football_only": true
+  },
+  {
+    "name": "CaughtOffside | Transfers & Global Football",
+    "url": "https://www.caughtoffside.com/feed/",
+    "football_only": true
+  },
+  {
+    "name": "Football365 | Football News & Transfers",
+    "url": "https://www.football365.com/rss",
+    "football_only": true
+  },
+  {
+    "name": "Football FanCast | Clubs & Leagues",
+    "url": "https://www.footballfancast.com/feed/",
+    "football_only": true
+  },
+  {
+    "name": "The Hindu | International Football",
+    "url": "https://www.thehindu.com/sport/football/feeder/default.rss",
     "football_only": true
   }
 ]

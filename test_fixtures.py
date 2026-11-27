@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fixtures import (
     normalize_event, fixture_key, format_cairo_date,
     arabic_team_name, arabic_digits, make_match_card, build_caption,
-    due_reminders, reminder_key, parse_goal_fixtures
+    due_reminders, reminder_key, parse_goal_fixtures, _goal_competition_name
 )
 from PIL import Image
 from io import BytesIO
@@ -123,6 +123,14 @@ class FixtureParsingTests(unittest.TestCase):
         by_home = {item["home"]: item["league"] for item in parsed}
         self.assertEqual(by_home["Nottingham Forest"], "الدوري الإنجليزي الممتاز")
         self.assertEqual(by_home["Werder Bremen"], "الدوري الألماني")
+
+    def test_goal_uses_latest_heading_when_parent_context_contains_old_leagues(self):
+        raw = (
+            "2. Bundesliga Germany Game Week 13 "
+            "Botola Pro Morocco Game Week 8 "
+            "Bundesliga Germany Game Week 11"
+        )
+        self.assertEqual(_goal_competition_name(raw)[0], "الدوري الألماني")
 
     def test_catch_up_schedule_only_covers_next_12_hours(self):
         now = datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)

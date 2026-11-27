@@ -128,6 +128,7 @@ class _GoalAnchorParser(HTMLParser):
         self.heading = ""
         self.heading_depth = 0
         self.heading_buffer = []
+        self.context_buffer = ""
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -152,13 +153,15 @@ class _GoalAnchorParser(HTMLParser):
             self.current["text"].append(data)
         else:
             candidate = re.sub(r"\s+", " ", data).strip()
-            lower = candidate.lower()
-            if len(candidate) < 100 and any(key in lower for key in (
+            if candidate:
+                self.context_buffer = (self.context_buffer + " " + candidate)[-320:]
+            context_lower = self.context_buffer.lower()
+            if any(key in context_lower for key in (
                 "premier league", "laliga", "la liga", "bundesliga", "serie a",
                 "ligue 1", "pro league", "major league soccer", "botola pro",
                 "confederation cup", "eredivisie", "liga portugal", "championship"
             )):
-                self.heading = candidate
+                self.heading = self.context_buffer
         if self.heading_depth:
             self.heading_buffer.append(data)
 
@@ -169,12 +172,13 @@ class _GoalAnchorParser(HTMLParser):
             self.items.append(self.current)
             candidate = self.current["text"]
             lower = candidate.lower()
-            if len(candidate) < 100 and any(key in lower for key in (
+            if len(candidate) < 140 and any(key in lower for key in (
                 "premier league", "laliga", "la liga", "bundesliga", "serie a",
                 "ligue 1", "pro league", "major league soccer", "botola pro",
                 "confederation cup", "eredivisie", "liga portugal", "championship"
             )):
                 self.heading = candidate
+                self.context_buffer = candidate
             self.current = None
         if tag in ("h2", "h3", "h4") and self.heading_depth:
             heading = re.sub(r"\s+", " ", " ".join(self.heading_buffer)).strip()
@@ -196,27 +200,38 @@ def _goal_competition_name(raw):
     value = re.sub(r"\s+", " ", str(raw or "")).strip().lower()
     mappings = (
         (("premier league", "england"), "الدوري الإنجليزي الممتاز", "eng.1"),
-        (("laliga", "la liga"), "الدوري الإسباني", "esp.1"),
-        (("bundesliga",), "الدوري الألماني", "ger.1"),
+        (("premier league", "iraq"), "الدوري العراقي", "irq.1"),
+        (("laliga",), "الدوري الإسباني", "esp.1"),
+        (("la liga",), "الدوري الإسباني", "esp.1"),
+        (("bundesliga", "germany"), "الدوري الألماني", "ger.1"),
+        (("2. bundesliga",), "دوري الدرجة الثانية الألماني", "ger.2"),
+        (("3. liga", "germany"), "دوري الدرجة الثالثة الألماني", "ger.3"),
         (("serie a", "italy"), "الدوري الإيطالي", "ita.1"),
+        (("serie a", "brazil"), "الدوري البرازيلي", "bra.1"),
         (("ligue 1",), "الدوري الفرنسي", "fra.1"),
         (("pro league", "saudi"), "دوري روشن السعودي", "ksa.1"),
-        (("major league soccer", "mls"), "الدوري الأمريكي", "usa.1"),
+        (("major league soccer",), "الدوري الأمريكي", "usa.1"),
+        (("mls",), "الدوري الأمريكي", "usa.1"),
         (("championship", "england"), "دوري البطولة الإنجليزية", "eng.2"),
-        (("botola pro", "morocco"), "الدوري المغربي", "mar.1"),
-        (("confederation cup", "africa"), "كأس الكونفدرالية الإفريقية", "caf.confed"),
+        (("national league", "england"), "دوري الدرجة الخامسة الإنجليزي", "eng.nl"),
+        (("botola pro",), "الدوري المغربي", "mar.1"),
+        (("confederation cup",), "كأس الكونفدرالية الإفريقية", "caf.confed"),
         (("caf champions",), "دوري أبطال إفريقيا", "caf.champions"),
         (("eredivisie",), "الدوري الهولندي", "ned.1"),
-        (("liga portugal", "portugal"), "الدوري البرتغالي", "por.1"),
-        (("serie a", "brazil"), "الدوري البرازيلي", "bra.1"),
+        (("liga portugal",), "الدوري البرتغالي", "por.1"),
+        (("world cup qualification", "concacaf"), "تصفيات كأس العالم - الكونكاكاف", "fifa.worldq.concacaf"),
+        (("primera a", "colombia"), "الدوري الكولومبي", "col.1"),
+        (("eerste divisie",), "دوري الدرجة الثانية الهولندي", "ned.2"),
+        (("liga super", "malaysia"), "الدوري الماليزي", "mys.1"),
+        (("erovnuli liga",), "الدوري الجورجي", "geo.1"),
+        (("2. bundesliga",), "دوري الدرجة الثانية الألماني", "ger.2"),
     )
     for tokens, name, slug in mappings:
         if all(token in value for token in tokens):
             return name, slug
-    if not value or "women" in value or "femenil" in value or "u18" in value or "academy" in value:
+    if not value or any(token in value for token in ("women", "femenil", "u18", "academy", "youth")):
         return "", ""
-    slug = re.sub(r"[^a-z0-9]+", "-", value).strip("-") or "goal-football"
-    return "مباريات كرة القدم", slug
+    return "", ""
 
 
 def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
@@ -224,6 +239,9 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
     parser = _GoalAnchorParser()
     parser.feed(page_html or "")
     matches = []
+    raw_competitions = sorted({re.sub(r"\s+", " ", item.get("competition", "")).strip()
+                               for item in parser.items if item.get("competition")})
+    print("GOAL competition labels sample:", raw_competitions[:20])
     for item in parser.items:
         text = re.sub(r"\s+", " ", item.get("text", "")).strip()
         result = _GOAL_ROW_PATTERN.match(text)

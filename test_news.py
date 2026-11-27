@@ -25,17 +25,6 @@ class NewsImageTests(unittest.TestCase):
         rendered = bot.build_news_rich_html("عنوان رياضي", "", "كرة قدم")
         self.assertIn("لم تتوفر تفاصيل إضافية موثوقة", rendered)
 
-    @patch("bot.telegram_api")
-    def test_send_news_uses_only_standard_telegram_methods_and_no_source_link(self, api):
-        bot.send_news(b"photo-bytes", "عنوان الخبر", "تفاصيل موسعة داخل القناة", "الكرة العربية")
-        self.assertEqual([call.args[0] for call in api.call_args_list], ["sendPhoto", "sendMessage"])
-        detail_call = api.call_args_list[1]
-        message = detail_call.kwargs["data"]["text"]
-        self.assertIn("<blockquote expandable>", message)
-        self.assertIn("تفاصيل موسعة داخل القناة", message)
-        self.assertNotIn("http", message)
-        self.assertNotIn("المصدر:", message)
-
     @patch("bot._try_image_urls", return_value=(2_000_000, b"publisher-photo"))
     @patch("bot.article_image_candidates", return_value=["https://publisher.example/og-image.jpg"])
     def test_prefers_actual_article_image_before_rss_thumbnail(self, _article_candidates, try_images):

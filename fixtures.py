@@ -127,7 +127,6 @@ class _GoalAnchorParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.items = []
         self.stack = []
-        self.current_competition = ""
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -151,7 +150,7 @@ class _GoalAnchorParser(HTMLParser):
         }
         if tag == "a":
             node["href"] = attrs.get("href") or ""
-            node["competition"] = self.current_competition
+            node["competition"] = ""
             # Walk up the DOM and use the nearest parent text that identifies a league.
             for ancestor in reversed(self.stack):
                 context = " ".join(ancestor["text_parts"])
@@ -175,10 +174,6 @@ class _GoalAnchorParser(HTMLParser):
         if not self.stack:
             return
         node = self.stack.pop()
-        if node["tag"] in ("h1", "h2", "h3", "h4"):
-            heading = " ".join(node["text_parts"])
-            if _goal_competition_name(heading)[0]:
-                self.current_competition = heading
         if node["tag"] == "a":
             node["text"] = " ".join(node["text_parts"])
             node["images"] = list(dict.fromkeys(node["images"]))

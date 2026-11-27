@@ -171,13 +171,9 @@ class _GoalAnchorParser(HTMLParser):
         }
         if tag == "a":
             node["href"] = attrs.get("href") or ""
+            # Associate the fixture with the most recent competition heading only.
+            # Ancestor containers often contain many previous groups and contaminate the league.
             node["competition"] = self.current_competition
-            # Walk up the DOM and use the nearest parent text that identifies a league.
-            for ancestor in reversed(self.stack):
-                context = " ".join(ancestor["text_parts"])
-                if _goal_competition_name(context)[0]:
-                    node["competition"] = context[-800:]
-                    break
         self.stack.append(node)
 
     def handle_startendtag(self, tag, attrs):
@@ -206,7 +202,8 @@ class _GoalAnchorParser(HTMLParser):
 
 
 _GOAL_ROW_PATTERN = re.compile(
-    r"^(?P<home>.+?)\s+(?:(?P<home_suffix>SC|FC|AFC|CF|FK|AC|AS|CD|CA|UD|SD|SK|SV|TSV|CSD|CS)\s+)?"
+    r"^(?:(?P<home_prefix>FK|FC|SK|AC|AS|SC|CD|CA|UD|SD|TSV|CSD|CS)\s+)?"
+    r"(?P<home>.+?)\s+(?:(?P<home_suffix>SC|FC|AFC|CF|FK|AC|AS|CD|CA|UD|SD|SK|SV|TSV|CSD|CS)\s+)?"
     r"(?P<home_code>[A-Z0-9]{2,4})\s+"
     r"(?P<away>.+?)\s+(?P<away_code>[A-Z0-9]{2,4})\s+"
     r"(?P<time>\d{1,2}:\d{2})$"
@@ -247,6 +244,9 @@ def _goal_competition_name(raw):
         (("erovnuli liga",), "الدوري الجورجي", "geo.1"),
         (("adnoc pro league",), "الدوري الإماراتي", "uae.1"),
         (("iraqi stars",), "الدوري العراقي", "irq.1"),
+        (("fnl", "czechia"), "دوري الدرجة الثانية التشيكي", "cze.2"),
+        (("super lig", "turkiye"), "الدوري التركي", "tur.1"),
+        (("super lig", "türkiye"), "الدوري التركي", "tur.1"),
         (("prva liga", "serbia"), "الدوري الصربي", "srb.1"),
         (("prva liga", "slovenia"), "الدوري السلوفيني", "svn.1"),
         (("super liga", "serbia"), "الدوري الصربي", "srb.1"),
@@ -333,6 +333,8 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
         if not result:
             continue
         home = result.group("home").strip()
+        if result.groupdict().get("home_prefix"):
+            home = result.group("home_prefix").strip() + " " + home
         if result.groupdict().get("home_suffix"):
             home += " " + result.group("home_suffix").strip()
         away = result.group("away").strip()

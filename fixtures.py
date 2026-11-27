@@ -18,8 +18,11 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "@KoraxNews11").strip()
 FIXTURES_FILE = "fixtures.json"
 STATE_FILE = "seen_matches.json"
 CAIRO = ZoneInfo("Africa/Cairo")
-LOOKAHEAD_HOURS = 24
-MAX_POSTS_PER_RUN = 3
+LOOKAHEAD_HOURS = 26
+REMINDER_WINDOWS = {
+    "24h": (timedelta(hours=23, minutes=45), timedelta(hours=24, minutes=15)),
+    "30m": (timedelta(minutes=20), timedelta(minutes=35)),
+}
 HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": "Mozilla/5.0 (compatible; KORAX-MATCH-CENTER/1.0)"})
 LOGO_CACHE = {}
@@ -368,12 +371,19 @@ def _escape(value):
     return html.escape(str(value or ""), quote=True)
 
 
-def build_caption(match):
+def build_caption(match, reminder_type=None):
     kickoff=_parse_datetime(match["kickoff"])
     formatted=format_cairo_date(kickoff)
     home_ar=arabic_team_name(match.get("home"))
     away_ar=arabic_team_name(match.get("away"))
-    parts=[
+    reminder_labels = {
+        "24h": "⏳ <b>موعد المباراة غدًا</b>",
+        "30m": "🚨 <b>المباراة هتبدأ بعد نصف ساعة</b>",
+    }
+    parts=[]
+    if reminder_type in reminder_labels:
+        parts.append(reminder_labels[reminder_type])
+    parts.extend([
         f"⚽ <b>{_escape(home_ar)} ضد {_escape(away_ar)}</b>",
         f"🏆 <b>البطولة:</b> {_escape(match.get('league') or 'بطولة كرة القدم')}",
         f"📅 <b>التاريخ:</b> {_escape(arabic_digits(formatted['date']))}",
@@ -414,7 +424,20 @@ def load_seen():
 
 def save_seen(seen):
     with open(STATE_FILE, "w", encoding="utf-8") as file:
-        json.dump({"seen": sorted(seen)[-12000:]}, file, ensure_ascii=False, indent=2)
+        json.dump({"seen": sorted(seen)[-24000:]}, file, ensure_ascii=False, indent=2)
+
+
+def due_reminders(match, now):
+    kickoff = _parse_datetime(match.get("kickoff"))
+    if not kickoff:
+        return []
+    remaining = kickoff - now
+    return [kind for kind, (earliest, latest) in REMINDER_WINDOWS.items()
+            if earliest <= remaining <= latest]
+
+
+def reminder_key(match, reminder_type):
+    return f"{reminder_type}:{fixture_key(match)}"
 
 
 def main():
@@ -442,34 +465,41 @@ def main():
                     results.append(match)
 
     if healthy == 0:
-        raise RuntimeError("Every ESPN scoreboard request failed; no fixture data could be checked.")
+        raise RuntimeError("Every scoreboard request failed; no fixture data could be checked.")
 
     unique = {fixture_key(match): match for match in results}
     matches = sorted(unique.values(), key=lambda item: item["kickoff"])
     seen = load_seen()
-    pending = [match for match in matches if fixture_key(match) not in seen]
+    due = []
+    for match in matches:
+        for reminder_type in due_reminders(match, now):
+            key = reminder_key(match, reminder_type)
+            if key not in seen:
+                due.append((match, reminder_type, key))
+
     print(f"Fixture scan: {healthy}/{len(leagues)} competitions reachable; "
           f"{len(matches)} upcoming matches in the next {LOOKAHEAD_HOURS} hours; "
-          f"{len(pending)} not published yet.")
+          f"{len(due)} due reminders (24h / 30m).")
 
     published = 0
-    for match in pending[:MAX_POSTS_PER_RUN]:
+    for match, reminder_type, key in due:
         try:
             photo = make_match_card(match)
             _telegram(
                 "sendPhoto",
-                data={"chat_id": CHAT_ID, "caption": build_caption(match), "parse_mode": "HTML"},
+                data={"chat_id": CHAT_ID, "caption": build_caption(match, reminder_type), "parse_mode": "HTML"},
                 files={"photo": ("korax-match.jpg", photo, "image/jpeg")},
             )
-            seen.add(fixture_key(match))
+            seen.add(key)
             save_seen(seen)
             published += 1
-            print(f"Published: {match['home']} vs {match['away']} | {match['league']} | {match['kickoff']}")
+            label = "24 hours" if reminder_type == "24h" else "30 minutes"
+            print(f"Published {label} reminder: {match['home']} vs {match['away']} | {match['league']} | {match['kickoff']}")
             time.sleep(1)
         except Exception as exc:
-            print(f"Could not publish {match.get('home')} vs {match.get('away')}: {exc!r}")
+            print(f"Could not publish {reminder_type} reminder for {match.get('home')} vs {match.get('away')}: {exc!r}")
 
-    print(f"Fixture run finished: {published} match cards published.")
+    print(f"Fixture run finished: {published} reminders published.")
 
 
 if __name__ == "__main__":

@@ -418,31 +418,46 @@ def category_for(title, summary, source_name=""):
 
 
 def build_caption(title, summary, source_name, link, category):
-    # Telegram counts UTF-16 units and rejects captions cut inside an HTML entity/tag.
-    safe_title = html.escape((title or "").strip()[:180])
+    # Keep HTML tags intact and stay below Telegram's UTF-16 caption limit.
+    title_text = (title or "").strip()[:150]
     summary_text = (summary or "").strip()[:220]
-    safe_summary = html.escape(summary_text)
-    parts = [
-        f"⚽ <b>{safe_title}</b>",
-        "━━━━━━━━━━━━━━━━",
-    ]
-    if safe_summary:
-        parts.append(f"📝 <b>ملخص الخبر</b>\n{safe_summary}")
-    parts.extend([
-        f"🏆 <b>القسم:</b> {html.escape(category or 'كرة قدم')}",
-        f"📰 <b>المصدر:</b> {html.escape(source_name or 'مصدر رياضي')}",
-        f'🔗 <a href="{html.escape(link, quote=True)}">اقرأ التفاصيل من المصدر</a>',
-        "🔷 <b>KORAX NEWS</b>  ◻️",
-    ])
-    caption = "\n\n".join(parts)
+    def compose(include_link=True):
+        parts = [f"⚽ <b>{html.escape(title_text)}</b>", "━━━━━━━━━━━━━━━━"]
+        if summary_text:
+            parts.append(f"📝 <b>ملخص الخبر</b>\n{html.escape(summary_text)}")
+        parts.extend([
+            f"🏆 <b>القسم:</b> {html.escape(category or 'كرة قدم')}",
+            f"📰 <b>المصدر:</b> {html.escape(source_name or 'مصدر رياضي')}",
+        ])
+        if include_link and link:
+            parts.append(f'🔗 <a href="{html.escape(link, quote=True)}">اقرأ التفاصيل من المصدر</a>')
+        parts.append("🔷 <b>KORAX NEWS</b>  ◻️")
+        return "\n\n".join(parts)
+    caption = compose()
     while len(caption.encode("utf-16-le")) // 2 > 1024 and summary_text:
-        summary_text = summary_text[:-20]
-        safe_summary = html.escape(summary_text.rstrip() + ("…" if summary_text else ""))
-        parts[2] = f"📝 <b>ملخص الخبر</b>\n{safe_summary}"
-        caption = "\n\n".join(parts)
+        summary_text = summary_text[:-25]
+        caption = compose()
     if len(caption.encode("utf-16-le")) // 2 > 1024:
-        raise ValueError("Caption metadata exceeds Telegram's 1024 UTF-16-unit limit.")
+        title_text = title_text[:90]
+        caption = compose()
+    if len(caption.encode("utf-16-le")) // 2 > 1024:
+        caption = compose(include_link=False)
+    if len(caption.encode("utf-16-le")) // 2 > 1024:
+        raise ValueError("Even the shortened Telegram caption exceeds 1024 UTF-16 units.")
     return caption
+
+
+def resolve_article_url(url):
+    try:
+        response = HTTP.get(url, timeout=12, allow_redirects=True, stream=True)
+        final_url = response.url
+        response.close()
+        if final_url.startswith(("https://", "http://")) and len(final_url) < len(url):
+            print(f"Resolved publisher article URL: {urlparse(final_url).netloc}")
+            return final_url
+    except Exception as exc:
+        print("Article URL redirect resolution unavailable:", repr(exc))
+    return url
 
 
 def make_news_card(photo_bytes, title, category, source_name):

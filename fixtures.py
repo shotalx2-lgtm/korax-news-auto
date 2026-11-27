@@ -505,24 +505,36 @@ def format_cairo_date(value):
     }
 
 
+_RAQM_AVAILABLE = bool(getattr(getattr(ImageFont, "core", None), "HAVE_RAQM", False))
+
+
 def _font(size, bold=False):
     candidates = [
         "/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ]
+    layout = ImageFont.Layout.RAQM if _RAQM_AVAILABLE else ImageFont.Layout.BASIC
     for path in candidates:
         if os.path.exists(path):
-            return ImageFont.truetype(path, size)
+            try:
+                return ImageFont.truetype(path, size, layout_engine=layout)
+            except Exception:
+                continue
     return ImageFont.load_default()
 
 
 def _rtl(value):
+    text = str(value)
+    # Pillow's RAQM engine already shapes Arabic and applies the bidi algorithm.
+    # Pre-shaping it again reverses word order, which caused the garbled card text.
+    if _RAQM_AVAILABLE:
+        return text
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
-        return get_display(arabic_reshaper.reshape(str(value)))
+        return get_display(arabic_reshaper.reshape(text))
     except Exception:
-        return str(value)
+        return text
 
 
 def _download_logo(url):

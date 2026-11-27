@@ -7,6 +7,7 @@ from fixtures import (
 )
 from PIL import Image
 from io import BytesIO
+from unittest.mock import patch
 
 
 class FixtureParsingTests(unittest.TestCase):
@@ -78,13 +79,15 @@ class FixtureParsingTests(unittest.TestCase):
         match = {
             "home": "Chelsea",
             "away": "Nottingham Forest",
-            "home_logo": "",
-            "away_logo": "",
+            "home_logo": "https://example.com/home.png",
+            "away_logo": "https://example.com/away.png",
             "league": "الدوري الإنجليزي الممتاز",
-            "league_logo": "",
+            "league_logo": "https://example.com/league.png",
             "kickoff": "2026-11-27T20:00:00Z",
         }
-        image = Image.open(BytesIO(make_match_card(match).getvalue()))
+        fake_badge = Image.new("RGBA", (160, 160), (25, 80, 20, 255))
+        with patch("fixtures._download_logo", return_value=fake_badge):
+            image = Image.open(BytesIO(make_match_card(match).getvalue()))
         self.assertEqual(image.size, (1200, 675))
         caption = build_caption(match)
         self.assertIn("تشيلسي ضد نوتينجهام فورست", caption)

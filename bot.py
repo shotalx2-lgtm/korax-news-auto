@@ -521,7 +521,7 @@ def normalize_story(value):
 
 
 def title_fingerprint(title):
-    return hashlib.sha256(re.sub(r"\\s+", "", normalize_story(title)).encode("utf-8")).hexdigest()
+    return hashlib.sha256(re.sub(r"\s+", "", normalize_story(title)).encode("utf-8")).hexdigest()
 
 
 def is_duplicate_title(title, known_stories):

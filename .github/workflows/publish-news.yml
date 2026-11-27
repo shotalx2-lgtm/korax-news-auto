@@ -47,8 +47,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Validate Python syntax
-        run: python -m py_compile bot.py
+      - name: Validate Python syntax and news image tests
+        run: |
+          python -m py_compile bot.py
+          python -m unittest -v test_news.py
 
       - name: Fetch and publish new football news
         env:

@@ -381,14 +381,14 @@ def build_caption(match):
     ]
     if match.get("round"):
         round_name = str(match["round"])
-        round_number = re.search(r"\\d+", round_name)
+        round_number = re.search(r"\d+", round_name)
         if round_number:
             round_name = f"الجولة {arabic_digits(round_number.group())}"
-        elif not re.search(r"[\\u0600-\\u06FF]", round_name):
+        elif not re.search(r"[\u0600-\u06FF]", round_name):
             round_name = ""
         if round_name:
             parts.append(f"🔢 <b>الجولة:</b> {_escape(round_name)}")
-    parts.append("🔷 <b>KORAX NEWS</b>")
+    parts.append("🔷 <b>كوراكس</b>")
     return "\n\n".join(parts)
 
 

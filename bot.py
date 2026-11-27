@@ -418,8 +418,10 @@ def category_for(title, summary, source_name=""):
 
 
 def build_caption(title, summary, source_name, link, category):
-    safe_title = html.escape(title)
-    safe_summary = html.escape(summary[:360].strip())
+    # Telegram counts UTF-16 units and rejects captions cut inside an HTML entity/tag.
+    safe_title = html.escape((title or "").strip()[:180])
+    summary_text = (summary or "").strip()[:220]
+    safe_summary = html.escape(summary_text)
     parts = [
         f"⚽ <b>{safe_title}</b>",
         "━━━━━━━━━━━━━━━━",
@@ -427,17 +429,20 @@ def build_caption(title, summary, source_name, link, category):
     if safe_summary:
         parts.append(f"📝 <b>ملخص الخبر</b>\n{safe_summary}")
     parts.extend([
-        f"🏆 <b>القسم:</b> {html.escape(category)}",
-        f"📰 <b>المصدر:</b> {html.escape(source_name)}",
+        f"🏆 <b>القسم:</b> {html.escape(category or 'كرة قدم')}",
+        f"📰 <b>المصدر:</b> {html.escape(source_name or 'مصدر رياضي')}",
         f'🔗 <a href="{html.escape(link, quote=True)}">اقرأ التفاصيل من المصدر</a>',
         "🔷 <b>KORAX NEWS</b>  ◻️",
     ])
     caption = "\n\n".join(parts)
-    if len(caption) > 1000 and safe_summary:
-        allowed = max(80, len(safe_summary) - (len(caption) - 1000) - 20)
-        parts[2] = f"📝 <b>ملخص الخبر</b>\n{safe_summary[:allowed]}…"
+    while len(caption.encode("utf-16-le")) // 2 > 1024 and summary_text:
+        summary_text = summary_text[:-20]
+        safe_summary = html.escape(summary_text.rstrip() + ("…" if summary_text else ""))
+        parts[2] = f"📝 <b>ملخص الخبر</b>\n{safe_summary}"
         caption = "\n\n".join(parts)
-    return caption[:1024]
+    if len(caption.encode("utf-16-le")) // 2 > 1024:
+        raise ValueError("Caption metadata exceeds Telegram's 1024 UTF-16-unit limit.")
+    return caption
 
 
 def make_news_card(photo_bytes, title, category, source_name):
@@ -509,10 +514,10 @@ def load_state():
 
 def normalize_story(value):
     value = unicodedata.normalize("NFKC", clean_text(value)).lower()
-    value = re.sub(r"[\\u064B-\\u065F\\u0670\\u0640]", "", value)
+    value = re.sub(r"[\u064B-\u065F\u0670\u0640]", "", value)
     value = value.translate(str.maketrans({"أ":"ا", "إ":"ا", "آ":"ا", "ى":"ي", "ة":"ه"}))
-    value = re.sub(r"https?://\\S+|[^\\w\\u0600-\\u06FF]+", " ", value)
-    return re.sub(r"\\s+", " ", value).strip()
+    value = re.sub(r"https?://\S+|[^\w\u0600-\u06FF]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def title_fingerprint(title):

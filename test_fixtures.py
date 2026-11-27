@@ -5,9 +5,9 @@ from fixtures import (
     normalize_event, fixture_key, format_cairo_date,
     arabic_team_name, arabic_digits, make_match_card, build_caption,
     due_reminders, reminder_key, parse_goal_fixtures, _goal_competition_name,
-    _RAQM_AVAILABLE, _rtl
+    _RAQM_AVAILABLE, _rtl, _download_logo, LOGO_CACHE
 )
-from PIL import Image
+from PIL import Image, ImageDraw
 from io import BytesIO
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -196,6 +196,33 @@ class FixtureParsingTests(unittest.TestCase):
             self.assertEqual(_rtl(source), source)
         else:
             self.assertTrue(_rtl(source))
+
+    def test_generic_grey_shield_is_rejected_as_a_club_logo(self):
+        image = Image.new("RGBA", (150, 150), (255, 255, 255, 255))
+        draw = ImageDraw.Draw(image)
+        draw.polygon([(75, 20), (120, 38), (112, 100), (75, 128), (38, 100), (30, 38)],
+                     fill=(205, 207, 210, 255), outline=(155, 158, 162, 255), width=4)
+        payload = BytesIO()
+        image.save(payload, format="PNG")
+        response = type("Response", (), {
+            "content": payload.getvalue(),
+            "raise_for_status": lambda self: None,
+        })()
+        LOGO_CACHE.pop("https://goal.example/generic-shield.png", None)
+        with patch("fixtures.HTTP.get", return_value=response):
+            self.assertIsNone(_download_logo("https://goal.example/generic-shield.png"))
+
+    def test_colourful_club_badge_is_not_rejected_as_a_placeholder(self):
+        image = Image.new("RGBA", (150, 150), (225, 105, 25, 255))
+        payload = BytesIO()
+        image.save(payload, format="PNG")
+        response = type("Response", (), {
+            "content": payload.getvalue(),
+            "raise_for_status": lambda self: None,
+        })()
+        LOGO_CACHE.pop("https://goal.example/real-badge.png", None)
+        with patch("fixtures.HTTP.get", return_value=response):
+            self.assertIsNotNone(_download_logo("https://goal.example/real-badge.png"))
 
     def test_known_club_names_are_arabic(self):
         self.assertEqual(arabic_team_name("Chelsea"), "تشيلسي")

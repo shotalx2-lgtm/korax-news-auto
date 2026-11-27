@@ -23,6 +23,75 @@ HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": "Mozilla/5.0 (compatible; KORAX-MATCH-CENTER/1.0)"})
 LOGO_CACHE = {}
 
+TEAM_NAMES_AR = {
+    "chelsea":"تشيلسي","nottingham forest":"نوتينجهام فورست","nottm forest":"نوتينجهام فورست",
+    "arsenal":"أرسنال","liverpool":"ليفربول","manchester city":"مانشستر سيتي","man city":"مانشستر سيتي",
+    "manchester united":"مانشستر يونايتد","man united":"مانشستر يونايتد","tottenham hotspur":"توتنهام","tottenham":"توتنهام",
+    "newcastle united":"نيوكاسل يونايتد","aston villa":"أستون فيلا","west ham united":"وست هام يونايتد","west ham":"وست هام",
+    "brighton and hove albion":"برايتون","brighton":"برايتون","crystal palace":"كريستال بالاس","brentford":"برينتفورد",
+    "everton":"إيفرتون","fulham":"فولهام","bournemouth":"بورنموث","wolves":"وولفرهامبتون",
+    "wolverhampton wanderers":"وولفرهامبتون","burnley":"بيرنلي","sunderland":"سندرلاند","leeds united":"ليدز يونايتد",
+    "real madrid":"ريال مدريد","barcelona":"برشلونة","atletico madrid":"أتلتيكو مدريد","athletic club":"أتلتيك بلباو",
+    "real sociedad":"ريال سوسيداد","villarreal":"فياريال","real betis":"ريال بيتيس","betis":"ريال بيتيس",
+    "sevilla":"إشبيلية","valencia":"فالنسيا","girona":"جيرونا","osasuna":"أوساسونا","getafe":"خيتافي",
+    "celta vigo":"سيلتا فيجو","juventus":"يوفنتوس","inter":"إنتر ميلان","internazionale":"إنتر ميلان",
+    "inter milan":"إنتر ميلان","ac milan":"ميلان","milan":"ميلان","napoli":"نابولي","roma":"روما",
+    "lazio":"لاتسيو","fiorentina":"فيورنتينا","atalanta":"أتالانتا","bologna":"بولونيا","torino":"تورينو",
+    "bayern munich":"بايرن ميونخ","bayern":"بايرن ميونخ","borussia dortmund":"بوروسيا دورتموند",
+    "dortmund":"بوروسيا دورتموند","bayer leverkusen":"باير ليفركوزن","rb leipzig":"لايبزيج","leipzig":"لايبزيج",
+    "eintracht frankfurt":"آينتراخت فرانكفورت","stuttgart":"شتوتجارت","wolfsburg":"فولفسبورج",
+    "paris saint-germain":"باريس سان جيرمان","paris saint germain":"باريس سان جيرمان","psg":"باريس سان جيرمان",
+    "marseille":"مارسيليا","monaco":"موناكو","lyon":"ليون","al hilal":"الهلال","al-hilal":"الهلال",
+    "al nassr":"النصر","al-nassr":"النصر","al ahli":"الأهلي","al-ahli":"الأهلي","al ittihad":"الاتحاد",
+    "al-ittihad":"الاتحاد","al shabab":"الشباب","al-shabab":"الشباب","al ettifaq":"الاتفاق",
+    "al fateh":"الفتح","al taawoun":"التعاون","al wehda":"الوحدة","al raed":"الرائد","al khaleej":"الخليج",
+    "al hazem":"الحزم","al fayha":"الفيحاء","al qadsiah":"القادسية","al sadd":"السد","al duhail":"الدحيل",
+    "al ain":"العين","al wasl":"الوصل","al ahly":"الأهلي","zamalek":"الزمالك","pyramids":"بيراميدز"
+}
+_LATIN_DIGRAPHS_AR = (("tch","تش"),("sch","ش"),("sh","ش"),("ch","تش"),("th","ث"),("gh","غ"),("kh","خ"),
+    ("ph","ف"),("ck","ك"),("qu","كو"),("oo","و"),("ee","ي"),("ea","ي"),("ou","و"),("ow","او"),
+    ("ai","اي"),("ay","اي"),("tion","شيون"))
+_LATIN_LETTERS_AR = {"a":"ا","b":"ب","c":"ك","d":"د","e":"ي","f":"ف","g":"ج","h":"ه","i":"ي",
+    "j":"ج","k":"ك","l":"ل","m":"م","n":"ن","o":"و","p":"ب","q":"ق","r":"ر","s":"س","t":"ت",
+    "u":"و","v":"ڤ","w":"و","x":"كس","y":"ي","z":"ز"}
+
+def arabic_team_name(value):
+    """Use an Arabic club name; transliterate other Latin names as a fallback."""
+    original = str(value or "").strip()
+    if not original:
+        return "الفريق"
+    if re.search(r"[\u0600-\u06FF]", original):
+        return original
+    key = re.sub(r"[^a-z0-9]+", " ", original.lower()).strip()
+    if key in TEAM_NAMES_AR:
+        return TEAM_NAMES_AR[key]
+    out, index = [], 0
+    while index < len(key):
+        for latin, arabic in _LATIN_DIGRAPHS_AR:
+            if key.startswith(latin, index):
+                out.append(arabic)
+                index += len(latin)
+                break
+        else:
+            char = key[index]
+            out.append(" " if char == " " else char if char.isdigit() else _LATIN_LETTERS_AR.get(char, ""))
+            index += 1
+    result = re.sub(r"\s+", " ", "".join(out)).strip()
+    return result or "الفريق"
+
+def arabic_digits(value):
+    return str(value).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+
+def _league_logo_url(league_meta):
+    if not isinstance(league_meta, dict):
+        return ""
+    candidates = [league_meta.get("logo")]
+    for item in league_meta.get("logos") or []:
+        if isinstance(item, dict):
+            candidates.append(item.get("href") or item.get("url"))
+    return next((u for u in candidates if isinstance(u, str) and u.startswith(("https://","http://"))), "")
+
+
 
 def get_leagues():
     with open(FIXTURES_FILE, encoding="utf-8") as file:
@@ -49,6 +118,10 @@ def fetch_league(league, months):
             events.extend(payload.get("events") or [])
             league_meta = (payload.get("leagues") or [{}])[0]
             league_name = league_meta.get("name") or league_name
+            league_logo = _league_logo_url(league_meta)
+            if league_logo:
+                league = dict(league)
+                league["logo"] = league_logo
         return league, league_name, events, None
     except Exception as exc:
         return league, league_name, [], exc
@@ -122,6 +195,7 @@ def normalize_event(league, league_name, event):
     return {
         "league_slug": league["slug"],
         "league": league.get("name") or league_name,
+        "league_logo": league.get("logo") or "",
         "event_id": str(event.get("id") or ""),
         "kickoff": kickoff.isoformat(),
         "home": home_team.get("displayName") or home_team.get("name") or "الفريق المضيف",
@@ -199,22 +273,19 @@ def _download_logo(url):
 
 def _paste_badge(canvas, url, center, fallback, draw):
     x, y = center
-    diameter = 176
-    draw.ellipse((x - diameter // 2 - 7, y - diameter // 2 - 7,
-                  x + diameter // 2 + 7, y + diameter // 2 + 7),
-                 fill=(255, 255, 255), outline=(214, 220, 230), width=4)
+    diameter = 190
+    draw.ellipse((x-diameter//2-9,y-diameter//2-9,x+diameter//2+9,y+diameter//2+9),
+                 fill=(255,255,255), outline=(234,255,0), width=5)
     logo = _download_logo(url)
     if logo is None:
-        initials = str(fallback or "FC").strip()[:2]
-        draw.text((x, y), _rtl(initials), font=_font(42, True), fill=(30, 41, 59), anchor="mm")
+        draw.text((x,y), _rtl("الشعار غير متاح"), font=_font(20,True),
+                  fill=(45,70,15), anchor="mm")
         return
-    badge = Image.new("RGBA", (diameter, diameter), (255, 255, 255, 255))
-    bx = (diameter - logo.width) // 2
-    by = (diameter - logo.height) // 2
-    badge.alpha_composite(logo, (bx, by))
-    mask = Image.new("L", (diameter, diameter), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, diameter - 1, diameter - 1), fill=255)
-    canvas.paste(badge, (x - diameter // 2, y - diameter // 2), mask)
+    badge = Image.new("RGBA",(diameter,diameter),(255,255,255,255))
+    badge.alpha_composite(logo,((diameter-logo.width)//2,(diameter-logo.height)//2))
+    mask = Image.new("L",(diameter,diameter),0)
+    ImageDraw.Draw(mask).ellipse((0,0,diameter-1,diameter-1),fill=255)
+    canvas.paste(badge,(x-diameter//2,y-diameter//2),mask)
 
 
 def _fit_text(draw, text, max_width, preferred=34, min_size=21):
@@ -226,90 +297,93 @@ def _fit_text(draw, text, max_width, preferred=34, min_size=21):
     return _font(min_size, True)
 
 
+def _draw_arabic_capsule(draw, bounds, text, font_size=42):
+    draw.rounded_rectangle(bounds, radius=48, fill=(3,24,0), outline=(105,220,0), width=4)
+    x=(bounds[0]+bounds[2])//2
+    y=(bounds[1]+bounds[3])//2
+    shaped=_rtl(text)
+    font=_fit_text(draw,shaped,bounds[2]-bounds[0]-36,font_size,21)
+    draw.text((x,y),shaped,font=font,fill=(255,255,255),anchor="mm")
+
+
 def make_match_card(match):
-    """Create a clean, spacious Arabic-first fixture card with no overlapping text."""
-    width, height = 1200, 675
-    canvas = Image.new("RGB", (width, height), (10, 15, 26))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((34, 28, 1166, 647), radius=34,
-                           fill=(18, 27, 44), outline=(53, 68, 91), width=2)
-    draw.rounded_rectangle((72, 58, 1128, 150), radius=22, fill=(25, 39, 61))
-    draw.text((600, 87), "KORAX", font=_font(23, True), fill=(104, 190, 255), anchor="mm")
-    league_text = _rtl(match.get("league", "بطولة كرة القدم"))
-    draw.text((600, 121), league_text, font=_fit_text(draw, league_text, 980, 30, 19),
-              fill=(248, 250, 252), anchor="mm")
+    """Render the Arabic bright-green match poster using real club and league badges."""
+    width,height=1200,675
+    canvas=Image.new("RGB",(width,height),(2,5,1))
+    card_box=(15,15,1185,660)
+    cw,ch=card_box[2]-card_box[0],card_box[3]-card_box[1]
+    gradient=Image.new("RGB",(cw,ch))
+    pixels=gradient.load()
+    top_right=(214,255,18)
+    bottom_left=(10,62,2)
+    for y in range(ch):
+        for x in range(cw):
+            blend=min(1.0,max(0.0,0.55*x/max(1,cw-1)+0.45*y/max(1,ch-1)))
+            pixels[x,y]=tuple(int(top_right[k]*(1-blend)+bottom_left[k]*blend) for k in range(3))
+    mask=Image.new("L",(cw,ch),0)
+    ImageDraw.Draw(mask).rounded_rectangle((0,0,cw-1,ch-1),radius=72,fill=255)
+    canvas.paste(gradient,(card_box[0],card_box[1]),mask)
+    draw=ImageDraw.Draw(canvas)
+    draw.polygon([(15,510),(420,15),(610,15),(95,660),(15,660)],fill=(57,145,0))
+    draw.polygon([(770,660),(1185,170),(1185,300),(900,660)],fill=(22,104,2))
+    draw.rounded_rectangle(card_box,radius=72,outline=(133,235,0),width=6)
 
-    _paste_badge(canvas, match.get("home_logo"), (340, 315), match.get("home", ""), draw)
-    _paste_badge(canvas, match.get("away_logo"), (860, 315), match.get("away", ""), draw)
-    draw.text((600, 304), "VS", font=_font(31, True), fill=(148, 163, 184), anchor="mm")
+    league=_rtl(str(match.get("league") or "بطولة كرة القدم"))
+    league_logo=match.get("league_logo")
+    if league_logo:
+        _paste_badge(canvas,league_logo,(1090,112),"",draw)
+        league_bounds=(430,62,980,150)
+    else:
+        league_bounds=(500,62,1110,150)
+    league_font=_fit_text(draw,league,league_bounds[2]-league_bounds[0],44,24)
+    draw.text(((league_bounds[0]+league_bounds[2])//2,(league_bounds[1]+league_bounds[3])//2),
+              league,font=league_font,fill=(0,12,0),anchor="mm")
 
-    home_text = _rtl(match.get("home", "الفريق المضيف"))
-    away_text = _rtl(match.get("away", "الفريق الضيف"))
-    draw.text((340, 430), home_text, font=_fit_text(draw, home_text, 390, 32, 18),
-              fill=(255, 255, 255), anchor="mm")
-    draw.text((860, 430), away_text, font=_fit_text(draw, away_text, 390, 32, 18),
-              fill=(255, 255, 255), anchor="mm")
+    kickoff=_parse_datetime(match["kickoff"]).astimezone(CAIRO)
+    formatted=format_cairo_date(kickoff)
+    draw.rounded_rectangle((52,55,365,164),radius=55,fill=(5,35,0),outline=(70,125,0),width=3)
+    date_text=_rtl(arabic_digits(formatted["date"]))
+    time_text=_rtl(arabic_digits(formatted["time"]))
+    draw.text((208,88),date_text,font=_fit_text(draw,date_text,270,22,15),
+              fill=(232,255,210),anchor="mm")
+    draw.text((208,132),time_text,font=_font(38,True),fill=(255,255,255),anchor="mm")
 
-    kickoff = _parse_datetime(match["kickoff"]).astimezone(CAIRO)
-    formatted = format_cairo_date(kickoff)
-    draw.rounded_rectangle((165, 485, 1035, 580), radius=20,
-                           fill=(29, 43, 64), outline=(62, 86, 116), width=2)
-    date_text = _rtl(formatted["date"])
-    time_text = _rtl("موعد المباراة  " + formatted["time"] + "  بتوقيت مصر")
-    draw.text((600, 516), date_text, font=_font(23, True), fill=(203, 213, 225), anchor="mm")
-    draw.text((600, 553), time_text, font=_fit_text(draw, time_text, 820, 25, 18),
-              fill=(104, 190, 255), anchor="mm")
+    home_ar=arabic_team_name(match.get("home"))
+    away_ar=arabic_team_name(match.get("away"))
+    _paste_badge(canvas,match.get("home_logo"),(290,345),home_ar,draw)
+    _paste_badge(canvas,match.get("away_logo"),(910,345),away_ar,draw)
+    draw.text((600,345),_rtl("ضد"),font=_font(92,True),fill=(0,12,0),anchor="mm")
+    _draw_arabic_capsule(draw,(105,510,475,594),home_ar,44)
+    _draw_arabic_capsule(draw,(725,510,1095,594),away_ar,44)
 
-    details = "  •  ".join(part for part in
-                           (match.get("stage"), match.get("round"), match.get("venue")) if part)
-    if details:
-        details_rtl = _rtl(details[:90])
-        draw.text((600, 612), details_rtl, font=_fit_text(draw, details_rtl, 1000, 17, 13),
-                  fill=(148, 163, 184), anchor="mm")
-
-    output = BytesIO()
-    canvas.save(output, format="JPEG", quality=94, optimize=True, progressive=True, subsampling=0)
+    output=BytesIO()
+    canvas.save(output,format="JPEG",quality=95,optimize=True,progressive=True,subsampling=0)
     output.seek(0)
     return output
+
 
 def _escape(value):
     return html.escape(str(value or ""), quote=True)
 
 
 def build_caption(match):
-    kickoff = _parse_datetime(match["kickoff"])
-    formatted = format_cairo_date(kickoff)
-    teams = f"{_escape(match['home'])} × {_escape(match['away'])}"
-    parts = [
-        f"⚽ <b>{teams}</b>",
-        f"🏆 <b>البطولة:</b> {_escape(match['league'])}",
-        f"📅 <b>تاريخ البداية:</b> {_escape(formatted['date'])}",
-        f"⏰ <b>موعد المباراة:</b> {_escape(formatted['time'])} بتوقيت مصر",
+    kickoff=_parse_datetime(match["kickoff"])
+    formatted=format_cairo_date(kickoff)
+    home_ar=arabic_team_name(match.get("home"))
+    away_ar=arabic_team_name(match.get("away"))
+    parts=[
+        f"⚽ <b>{_escape(home_ar)} ضد {_escape(away_ar)}</b>",
+        f"🏆 <b>البطولة:</b> {_escape(match.get('league') or 'بطولة كرة القدم')}",
+        f"📅 <b>التاريخ:</b> {_escape(arabic_digits(formatted['date']))}",
+        f"⏰ <b>الموعد:</b> {_escape(arabic_digits(formatted['time']))} بتوقيت القاهرة",
     ]
-    if match.get("stage"):
-        parts.append(f"🏁 <b>المرحلة:</b> {_escape(match['stage'])}")
     if match.get("round"):
-        parts.append(f"🔢 <b>الجولة:</b> {_escape(match['round'])}")
-    if match.get("venue"):
-        parts.append(f"🏟️ <b>الملعب:</b> {_escape(match['venue'])}")
-    recent = []
-    if match.get("home_form"):
-        recent.append(f"{_escape(match['home'])}: {_escape(match['home_form'])}")
-    if match.get("away_form"):
-        recent.append(f"{_escape(match['away'])}: {_escape(match['away_form'])}")
-    if recent:
-        parts.append("📊 <b>آخر النتائج المتاحة:</b> " + " | ".join(recent))
-    description = f"مباراة ضمن منافسات {_escape(match['league'])}"
-    if match.get("stage"):
-        description += f" في مرحلة {_escape(match['stage'])}"
-    if match.get("venue"):
-        description += f"، وتقام على ملعب {_escape(match['venue'])}"
-    description += ". الموعد المعروض بتوقيت القاهرة، وقد يتغير موعد المباراة وفق تحديثات الجهة الناشرة."
-    parts.append("📝 <b>وصف المباراة:</b> " + description)
-    url = f"https://www.espn.com/soccer/match/_/gameId/{_escape(match['event_id'])}"
-    parts.append(f'🔎 <a href="{url}">تفاصيل المباراة من المصدر</a>')
-    parts.append("🔷 <b>KORAX MATCH CENTER</b> ◻️")
-    return "\n\n".join(parts)[:1024]
+        round_name=str(match["round"])
+        if not re.search(r"[\u0600-\u06FF]",round_name):
+            round_name=arabic_team_name(round_name)
+        parts.append(f"🔢 <b>الجولة:</b> {_escape(round_name)}")
+    parts.append("🔷 <b>KORAX NEWS</b>")
+    return "\n\n".join(parts)
 
 
 def _telegram(method, data=None, files=None):

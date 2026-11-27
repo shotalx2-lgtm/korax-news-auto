@@ -64,7 +64,19 @@ TEAM_NAMES_AR = {
     "paris fc":"باريس إف سي","levante":"ليفانتي","racing santander":"راسينج سانتاندير",
     "amal tiznit":"أمل تزنيت","us amal tiznit":"أمل تزنيت","moghreb tetouan":"المغرب التطواني",
     "maghreb tetouan":"المغرب التطواني","azzam united":"عزام يونايتد","azam fc":"عزام يونايتد",
-    "al ahly tripoli":"أهلي طرابلس","al ahli tripoli":"أهلي طرابلس"
+    "al ahly tripoli":"أهلي طرابلس","al ahli tripoli":"أهلي طرابلس",
+    "ghaz al-shamal sc":"غاز الشمال","ghaz al shamal sc":"غاز الشمال",
+    "ghaz al-shamal":"غاز الشمال","ghaz al shamal":"غاز الشمال",
+    "al-karma":"الكرمة","al karma":"الكرمة",
+    "zakho":"زاخو","karbalaa":"كربلاء","karbala":"كربلاء",
+    "al-gharraf":"الغراف","al gharraf":"الغراف","gharraf":"الغراف",
+    "al-mosul":"الموصل","al mosul":"الموصل","mosul":"الموصل",
+    "al talaba":"الطلبة","al-talaba":"الطلبة","al minaa basra":"الميناء",
+    "naft maysan":"نفط ميسان","naft":"النفط","al quwa al jawiya":"القوة الجوية",
+    "al-jolan sc":"الجولان","al jolan sc":"الجولان","newroz":"نوروز",
+    "al kahrabaa":"الكهرباء","al karkh":"الكرخ","al zawraa":"الزوراء",
+    "erbil":"أربيل","duhok":"دهوك","diyala":"ديالى",
+    "dinamo batumi":"دينامو باتومي","dila gori":"ديلا جوري"
 }
 _LATIN_DIGRAPHS_AR = (("tch","تش"),("sch","ش"),("sh","ش"),("ch","تش"),("th","ث"),("gh","غ"),("kh","خ"),
     ("ph","ف"),("ck","ك"),("qu","كو"),("oo","و"),("ee","ي"),("ea","ي"),("ou","و"),("ow","او"),
@@ -133,11 +145,18 @@ class _GoalAnchorParser(HTMLParser):
         attrs = dict(attrs)
         if tag == "img":
             image = (attrs.get("src") or attrs.get("data-src") or
-                     attrs.get("data-lazy-src") or "")
+                     attrs.get("data-lazy-src") or attrs.get("data-original") or "")
             if image.startswith(("http://", "https://", "/")):
+                record = {
+                    "url": image,
+                    "alt": attrs.get("alt") or "",
+                    "title": attrs.get("title") or "",
+                    "class": attrs.get("class") or "",
+                }
                 for node in reversed(self.stack):
                     if node["tag"] == "a":
                         node["images"].append(image)
+                        node["image_meta"].append(record)
                         break
             return
         if tag in self.VOID_TAGS:
@@ -148,6 +167,7 @@ class _GoalAnchorParser(HTMLParser):
             "attrs": attrs,
             "text_parts": [],
             "images": [],
+            "image_meta": [],
         }
         if tag == "a":
             node["href"] = attrs.get("href") or ""
@@ -186,7 +206,8 @@ class _GoalAnchorParser(HTMLParser):
 
 
 _GOAL_ROW_PATTERN = re.compile(
-    r"^(?P<home>.+?)\s+(?P<home_code>[A-Z0-9]{2,4})\s+"
+    r"^(?P<home>.+?)\s+(?:(?P<home_suffix>SC|FC|AFC|CF|FK|AC|AS|CD|CA|UD|SD|SK|SV|TSV|CSD|CS)\s+)?"
+    r"(?P<home_code>[A-Z0-9]{2,4})\s+"
     r"(?P<away>.+?)\s+(?P<away_code>[A-Z0-9]{2,4})\s+"
     r"(?P<time>\d{1,2}:\d{2})$"
 )
@@ -249,6 +270,55 @@ def _goal_competition_name(raw):
         return name, slug
     return "", ""
 
+def _goal_team_logo_records(item, home, away):
+    """Map GOAL images by alt/title when possible; reject obvious generic placeholders."""
+    records = item.get("image_meta") or []
+    cleaned = []
+    for record in records:
+        url = str(record.get("url") or "")
+        label = " ".join((record.get("alt", ""), record.get("title", ""))).lower()
+        haystack = (url + " " + label + " " + str(record.get("class", ""))).lower()
+        if any(word in haystack for word in ("placeholder", "generic", "default-logo", "no-logo", "unknown-team", "blank-crest")):
+            continue
+        if url and url not in [entry["url"] for entry in cleaned]:
+            cleaned.append({"url": url, "label": label})
+
+    def score(record, team):
+        team_key = re.sub(r"[^a-z0-9]+", " ", str(team).lower()).strip()
+        label_key = re.sub(r"[^a-z0-9]+", " ", record["label"]).strip()
+        if not label_key:
+            return 0
+        team_words = {word for word in team_key.split() if len(word) > 2}
+        label_words = set(label_key.split())
+        if team_key and team_key in label_key:
+            return 100
+        return len(team_words & label_words)
+
+    home_ranked = sorted(((score(record, home), record) for record in cleaned), key=lambda x: x[0], reverse=True)
+    away_ranked = sorted(((score(record, away), record) for record in cleaned), key=lambda x: x[0], reverse=True)
+    home_record = home_ranked[0][1] if home_ranked and home_ranked[0][0] > 0 else None
+    away_record = away_ranked[0][1] if away_ranked and away_ranked[0][0] > 0 else None
+    if home_record and away_record and home_record["url"] == away_record["url"]:
+        away_record = None
+
+    # GOAL commonly emits exactly two club images in home-then-away order.
+    # Use positional fallback only when both images are distinct and not labelled as generic.
+    if len(cleaned) == 2:
+        home_record = home_record or cleaned[0]
+        away_record = away_record or cleaned[1]
+    return (
+        urljoin("https://www.goal.com", home_record["url"]) if home_record else "",
+        urljoin("https://www.goal.com", away_record["url"]) if away_record else "",
+    )
+
+
+def _team_initials_ar(value):
+    words = [word for word in str(value or "").split() if word not in {"ال", "نادي", "ن"}]
+    if len(words) >= 2:
+        return words[0][0] + words[1][0]
+    return (words[0][:2] if words else "؟")
+
+
 def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
     """Parse scheduled match rows from the official GOAL fixtures page."""
     parser = _GoalAnchorParser()
@@ -263,6 +333,8 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
         if not result:
             continue
         home = result.group("home").strip()
+        if result.groupdict().get("home_suffix"):
+            home += " " + result.group("home_suffix").strip()
         away = result.group("away").strip()
         if re.search(r"\b(women|femenil|u18|academy|youth)\b", f"{home} {away}", re.I):
             continue
@@ -283,7 +355,7 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
         if not event_id or event_id in ("fixtures", "live-scores"):
             raw_id = f"{league_slug}|{home}|{away}|{kickoff.isoformat()}"
             event_id = hashlib.sha256(raw_id.encode("utf-8")).hexdigest()[:20]
-        logos = [urljoin("https://www.goal.com", image) for image in item.get("images", [])[:2]]
+        home_logo, away_logo = _goal_team_logo_records(item, home, away)
         matches.append({
             "league_slug": league_slug,
             "league": league_name,
@@ -292,8 +364,8 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
             "kickoff": kickoff.isoformat(),
             "home": home,
             "away": away,
-            "home_logo": logos[0] if len(logos) > 0 else "",
-            "away_logo": logos[1] if len(logos) > 1 else "",
+            "home_logo": home_logo,
+            "away_logo": away_logo,
             "home_form": "",
             "away_form": "",
             "home_record": "",
@@ -466,6 +538,15 @@ def _download_logo(url):
             return None
         image = Image.open(BytesIO(raw)).convert("RGBA")
         image.thumbnail((160, 160), Image.Resampling.LANCZOS)
+        visible = [pixel[:3] for pixel in image.getdata() if pixel[3] > 40]
+        unique = set(visible)
+        if visible:
+            grayscale_ratio = sum(1 for red, green, blue in visible
+                                  if max(red, green, blue) - min(red, green, blue) <= 12) / len(visible)
+            if len(unique) <= 14 and grayscale_ratio >= 0.94:
+                print("Rejected generic monochrome club placeholder:", urlparse(url).path[-70:])
+                LOGO_CACHE[url] = None
+                return None
         LOGO_CACHE[url] = image
         return image
     except Exception as exc:
@@ -480,8 +561,9 @@ def _paste_badge(canvas, url, center, fallback, draw, diameter=190):
                  fill=(255,255,255), outline=(234,255,0), width=5)
     logo = _download_logo(url)
     if logo is None:
-        draw.text((x,y), _rtl("الشعار غير متاح"), font=_font(20,True),
-                  fill=(45,70,15), anchor="mm")
+        initials = _rtl(_team_initials_ar(fallback))
+        font = _fit_text(draw, initials, diameter - 36, 54, 30)
+        draw.text((x, y), initials, font=font, fill=(26, 78, 18), anchor="mm")
         return
     logo = logo.copy()
     logo.thumbnail((diameter-24, diameter-24), Image.Resampling.LANCZOS)
@@ -545,10 +627,11 @@ def make_match_card(match):
 
     kickoff=_parse_datetime(match["kickoff"]).astimezone(CAIRO)
     formatted=format_cairo_date(kickoff)
+    month_names=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
     draw.rounded_rectangle((52,55,365,164),radius=55,fill=(5,35,0),outline=(70,125,0),width=3)
-    date_text=_rtl(arabic_digits(formatted["date"]))
+    date_text=_rtl(f"{arabic_digits(kickoff.day)} {month_names[kickoff.month-1]}")
     time_text=_rtl(arabic_digits(formatted["time"]))
-    draw.text((208,88),date_text,font=_fit_text(draw,date_text,270,22,15),
+    draw.text((208,88),date_text,font=_fit_text(draw,date_text,270,28,23),
               fill=(232,255,210),anchor="mm")
     draw.text((208,132),time_text,font=_font(38,True),fill=(255,255,255),anchor="mm")
 

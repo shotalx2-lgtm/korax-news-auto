@@ -111,6 +111,24 @@ class FixtureParsingTests(unittest.TestCase):
         """
         self.assertEqual(parse_goal_fixtures(html, datetime(2026, 11, 27).date()), [])
 
+    def test_goal_competition_context_resets_between_league_groups(self):
+        html = """
+        <h3>Premier League England</h3>
+        <a href="/match/one">Nottingham Forest NFO Chelsea CHE 15:00</a>
+        <h3>Bundesliga Germany</h3>
+        <a href="/match/two">Werder Bremen SVW Borussia Moenchengladbach BMG 14:30</a>
+        """
+        parsed = parse_goal_fixtures(html, datetime(2026, 11, 27).date())
+        self.assertEqual(len(parsed), 2)
+        by_home = {item["home"]: item["league"] for item in parsed}
+        self.assertEqual(by_home["Nottingham Forest"], "الدوري الإنجليزي الممتاز")
+        self.assertEqual(by_home["Werder Bremen"], "الدوري الألماني")
+
+    def test_catch_up_schedule_only_covers_next_12_hours(self):
+        now = datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)
+        match = {"kickoff": (now + timedelta(hours=18)).isoformat()}
+        self.assertEqual(due_reminders(match, now), [])
+
     def test_reminder_keys_are_separate_for_same_match(self):
         match = {"league_slug": "eng.1", "event_id": "chelsea-forest",
                  "kickoff": "2026-11-28T12:00:00+00:00"}

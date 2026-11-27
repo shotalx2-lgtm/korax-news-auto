@@ -104,6 +104,20 @@ class FixtureParsingTests(unittest.TestCase):
         cairo = datetime.fromisoformat(match["kickoff"]).astimezone(ZoneInfo("Africa/Cairo"))
         self.assertEqual((cairo.hour, cairo.minute), (22, 0))
 
+    def test_goal_team_prefix_is_preserved_in_club_name(self):
+        html = """
+        <h2>Super Liga Serbia</h2>
+        <a href="/match/imt-macva">FK IMT Beograd IMT Macva Sabac MAS 11:00</a>
+        """
+        parsed = parse_goal_fixtures(html, datetime(2026, 11, 27).date())
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual(parsed[0]["home"], "FK IMT Beograd")
+        self.assertEqual(parsed[0]["away"], "Macva Sabac")
+
+    def test_goal_czech_and_turkish_leagues_are_matched_by_their_own_heading(self):
+        self.assertEqual(_goal_competition_name("FNL Czechia Game Week 16")[0], "دوري الدرجة الثانية التشيكي")
+        self.assertEqual(_goal_competition_name("Super Lig Turkiye Game Week 13")[0], "الدوري التركي")
+
     def test_goal_team_suffix_is_not_mistaken_for_team_code(self):
         html = """
         <h2>Premier League Iraq</h2>

@@ -3,6 +3,7 @@ import json
 import time
 import hashlib
 import html
+import re
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo

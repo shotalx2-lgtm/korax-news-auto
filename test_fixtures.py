@@ -1,7 +1,12 @@
 import unittest
 from datetime import datetime, timezone
 
-from fixtures import normalize_event, fixture_key, format_cairo_date
+from fixtures import (
+    normalize_event, fixture_key, format_cairo_date,
+    arabic_team_name, arabic_digits, make_match_card, build_caption
+)
+from PIL import Image
+from io import BytesIO
 
 
 class FixtureParsingTests(unittest.TestCase):
@@ -58,6 +63,33 @@ class FixtureParsingTests(unittest.TestCase):
         result = format_cairo_date(datetime(2026, 11, 27, 20, 0, tzinfo=timezone.utc))
         self.assertIn("27 نوفمبر 2026", result["date"])
         self.assertIn("10:00 م", result["time"])
+
+    def test_known_club_names_are_arabic(self):
+        self.assertEqual(arabic_team_name("Chelsea"), "تشيلسي")
+        self.assertEqual(arabic_team_name("Nottingham Forest"), "نوتينجهام فورست")
+        self.assertEqual(arabic_team_name("Real Madrid"), "ريال مدريد")
+
+    def test_unknown_latin_club_name_is_transliterated(self):
+        name = arabic_team_name("Example United")
+        self.assertTrue(name)
+        self.assertNotRegex(name, r"[A-Za-z]")
+
+    def test_match_card_is_landscape_and_uses_arabic_names(self):
+        match = {
+            "home": "Chelsea",
+            "away": "Nottingham Forest",
+            "home_logo": "",
+            "away_logo": "",
+            "league": "الدوري الإنجليزي الممتاز",
+            "league_logo": "",
+            "kickoff": "2026-11-27T20:00:00Z",
+        }
+        image = Image.open(BytesIO(make_match_card(match).getvalue()))
+        self.assertEqual(image.size, (1200, 675))
+        caption = build_caption(match)
+        self.assertIn("تشيلسي ضد نوتينجهام فورست", caption)
+        self.assertIn("١٠:٠٠ م", caption)
+        self.assertNotIn("Chelsea", caption)
 
 
 if __name__ == "__main__":

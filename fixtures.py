@@ -280,6 +280,8 @@ def _paste_badge(canvas, url, center, fallback, draw, diameter=190):
         draw.text((x,y), _rtl("الشعار غير متاح"), font=_font(20,True),
                   fill=(45,70,15), anchor="mm")
         return
+    logo = logo.copy()
+    logo.thumbnail((diameter-24, diameter-24), Image.Resampling.LANCZOS)
     badge = Image.new("RGBA",(diameter,diameter),(255,255,255,255))
     badge.alpha_composite(logo,((diameter-logo.width)//2,(diameter-logo.height)//2))
     mask = Image.new("L",(diameter,diameter),0)
@@ -377,10 +379,14 @@ def build_caption(match):
         f"⏰ <b>الموعد:</b> {_escape(arabic_digits(formatted['time']))} بتوقيت القاهرة",
     ]
     if match.get("round"):
-        round_name=str(match["round"])
-        if not re.search(r"[\u0600-\u06FF]",round_name):
-            round_name=arabic_team_name(round_name)
-        parts.append(f"🔢 <b>الجولة:</b> {_escape(round_name)}")
+        round_name = str(match["round"])
+        round_number = re.search(r"\\d+", round_name)
+        if round_number:
+            round_name = f"الجولة {arabic_digits(round_number.group())}"
+        elif not re.search(r"[\\u0600-\\u06FF]", round_name):
+            round_name = ""
+        if round_name:
+            parts.append(f"🔢 <b>الجولة:</b> {_escape(round_name)}")
     parts.append("🔷 <b>KORAX NEWS</b>")
     return "\n\n".join(parts)
 

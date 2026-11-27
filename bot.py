@@ -533,56 +533,48 @@ def make_news_card(photo_bytes, title, category, source_name):
     return output
 
 def send_news(photo_bytes, title, summary, category):
+    """Publish the real photo, then an in-channel expandable editorial summary."""
     if not photo_bytes:
         raise ValueError("Refusing to publish a news post without its original article photo.")
-    rich_message = {
-        "html": build_news_rich_html(title, summary, category),
-        "is_rtl": True,
-        "media": [{
-            "id": "korax_news_photo",
-            "media": {"type": "photo", "media": "attach://photo"},
-        }],
-    }
-    try:
-        return telegram_api(
-            "sendRichMessage",
-            data={
-                "chat_id": CHAT_ID,
-                "rich_message": json.dumps(rich_message, ensure_ascii=False),
-            },
-            files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
-            timeout=45,
-        )
-    except RuntimeError as exc:
-        # Older Bot API installations may not expose Rich Messages yet.
-        message = str(exc).lower()
-        if "method not found" not in message and "unknown method" not in message:
-            raise
-        print("Rich Messages are unavailable; using a two-message expandable-quote fallback.")
-        photo_result = telegram_api(
-            "sendPhoto",
-            data={
-                "chat_id": CHAT_ID,
-                "caption": f"⚽ <b>{html.escape(title[:180])}</b>\n\n🏆 {html.escape(category)}",
-                "parse_mode": "HTML",
-            },
-            files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
-            timeout=45,
-        )
-        summary_text = clean_text(summary)[:2000] or "لا تتوفر تفاصيل إضافية مؤكدة لهذا الخبر."
-        telegram_api(
-            "sendMessage",
-            data={
-                "chat_id": CHAT_ID,
-                "text": (
-                    "<b>📖 تفاصيل الخبر — اضغط لعرض المزيد</b>\n"
-                    f"<blockquote expandable>{html.escape(summary_text)}</blockquote>"
-                ),
-                "parse_mode": "HTML",
-            },
-            timeout=45,
-        )
-        return photo_result
+
+    photo_result = telegram_api(
+        "sendPhoto",
+        data={
+            "chat_id": CHAT_ID,
+            "caption": (
+                f"⚽ <b>{html.escape(clean_text(title)[:180])}</b>\n\n"
+                f"🏆 <b>{html.escape(clean_text(category or 'كرة قدم')[:80])}</b>"
+            ),
+            "parse_mode": "HTML",
+        },
+        files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
+        timeout=45,
+    )
+
+    # This is an original summary of the verified feed description, not a full
+    # reproduction of the publisher's copyrighted article.
+    summary_text = clean_text(summary)[:2000]
+    if not summary_text:
+        summary_text = "لم تتوفر تفاصيل إضافية مؤكدة في وصف الخبر، لذلك نكتفي بالمعلومات الموثوقة المتاحة."
+
+    details_text = (
+        "<b>📖 تفاصيل الخبر</b>\n"
+        "اضغط على الاقتباس لعرض المزيد 👇\n\n"
+        f"<blockquote expandable>{html.escape(summary_text)}</blockquote>\n\n"
+        "🔷 <b>KORAX NEWS</b>"
+    )
+    telegram_api(
+        "sendMessage",
+        data={
+            "chat_id": CHAT_ID,
+            "text": details_text,
+            "parse_mode": "HTML",
+            "link_preview_options": json.dumps({"is_disabled": True}),
+        },
+        timeout=45,
+    )
+    return photo_result
+
 
 def load_state():
     try:

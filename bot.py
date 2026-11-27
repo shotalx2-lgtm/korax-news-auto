@@ -165,6 +165,34 @@ def translate_to_arabic(text):
     return None
 
 
+def translate_long_summary_to_arabic(text, max_chars=1400):
+    """Translate a feed description in small chunks; never fabricate missing details."""
+    text = clean_text(text)[:max_chars]
+    if not text or has_arabic(text):
+        return text
+    words = text.split()
+    chunks, current = [], []
+    current_bytes = 0
+    for word in words:
+        size = len(word.encode("utf-8")) + (1 if current else 0)
+        if current and current_bytes + size > 330:
+            chunks.append(" ".join(current))
+            current, current_bytes = [], 0
+        current.append(word)
+        current_bytes += size
+    if current:
+        chunks.append(" ".join(current))
+
+    translated_chunks = []
+    for chunk in chunks[:5]:
+        translated = translate_to_arabic(chunk)
+        if not translated or not has_arabic(translated):
+            print("Expanded story translation incomplete; preserving only verified Arabic text.")
+            return ""
+        translated_chunks.append(translated)
+    return " ".join(translated_chunks).strip()
+
+
 def is_mens_football(entry, source):
     title = clean_text(entry.get("title", ""))
     summary = clean_text(entry.get("summary", "") or entry.get("description", ""))
@@ -421,35 +449,29 @@ def category_for(title, summary, source_name=""):
     return "كرة قدم عالمية"
 
 
-def build_caption(title, summary, source_name, link, category):
-    # Keep HTML tags intact and stay below Telegram's UTF-16 caption limit.
-    title_text = (title or "").strip()[:150]
-    summary_text = (summary or "").strip()[:220]
-    def compose(include_link=True):
-        parts = [f"⚽ <b>{html.escape(title_text)}</b>", "━━━━━━━━━━━━━━━━"]
-        if summary_text:
-            parts.append(f"📝 <b>ملخص الخبر</b>\n{html.escape(summary_text)}")
-        parts.extend([
-            f"🏆 <b>القسم:</b> {html.escape(category or 'كرة قدم')}",
-            f"📰 <b>المصدر:</b> {html.escape(source_name or 'مصدر رياضي')}",
-        ])
-        if include_link and link:
-            parts.append(f'🔗 <a href="{html.escape(link, quote=True)}">اقرأ التفاصيل من المصدر</a>')
-        parts.append("🔷 <b>KORAX NEWS</b>  ◻️")
-        return "\n\n".join(parts)
-    caption = compose()
-    while len(caption.encode("utf-16-le")) // 2 > 1024 and summary_text:
-        summary_text = summary_text[:-25]
-        caption = compose()
-    if len(caption.encode("utf-16-le")) // 2 > 1024:
-        title_text = title_text[:90]
-        caption = compose()
-    if len(caption.encode("utf-16-le")) // 2 > 1024:
-        caption = compose(include_link=False)
-    if len(caption.encode("utf-16-le")) // 2 > 1024:
-        raise ValueError("Even the shortened Telegram caption exceeds 1024 UTF-16 units.")
-    return caption
+def build_news_rich_html(title, summary, category):
+    """Build one in-channel post with an expandable Arabic editorial summary."""
+    title = clean_text(title)[:180]
+    category = clean_text(category or "كرة قدم")[:80]
+    summary = clean_text(summary or "")[:2000]
+    if not summary:
+        summary = "لم تتوفر تفاصيل إضافية موثوقة في وصف الخبر المتاح، لذلك نكتفي بعنوان الخبر دون إضافة معلومات غير مؤكدة."
 
+    # This is an original short-form editorial summary from available feed details,
+    # not a reproduction of the publisher's complete copyrighted article.
+    paragraphs = re.split(r"(?<=[.!?؟])\s+", summary)
+    paragraph_html = "".join(
+        f"<p>{html.escape(part.strip())}</p>"
+        for part in paragraphs if part.strip()
+    )
+    return (
+        f"<h2>⚽ {html.escape(title)}</h2>"
+        f"<p>🏆 <b>{html.escape(category)}</b></p>"
+        '<img src="tg://photo?id=korax_news_photo"/>'
+        "<p><b>📖 تفاصيل الخبر — اضغط لعرض المزيد</b></p>"
+        f"<blockquote expandable>{paragraph_html}</blockquote>"
+        "<footer>🔷 <b>KORAX NEWS</b></footer>"
+    )
 
 def resolve_article_url(url):
     try:
@@ -510,17 +532,57 @@ def make_news_card(photo_bytes, title, category, source_name):
     output.seek(0)
     return output
 
-def send_news(caption, photo_bytes, title, category, source_name):
+def send_news(photo_bytes, title, summary, category):
     if not photo_bytes:
-        raise ValueError("Refusing to publish a blue/branded fallback without a real source photo.")
-    # Send the publisher's original image bytes unchanged.
-    telegram_api(
-        "sendPhoto",
-        data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
-        files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
-        timeout=45,
-    )
-
+        raise ValueError("Refusing to publish a news post without its original article photo.")
+    rich_message = {
+        "html": build_news_rich_html(title, summary, category),
+        "is_rtl": True,
+        "media": [{
+            "id": "korax_news_photo",
+            "media": {"type": "photo", "media": "attach://photo"},
+        }],
+    }
+    try:
+        return telegram_api(
+            "sendRichMessage",
+            data={
+                "chat_id": CHAT_ID,
+                "rich_message": json.dumps(rich_message, ensure_ascii=False),
+            },
+            files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
+            timeout=45,
+        )
+    except RuntimeError as exc:
+        # Older Bot API installations may not expose Rich Messages yet.
+        message = str(exc).lower()
+        if "method not found" not in message and "unknown method" not in message:
+            raise
+        print("Rich Messages are unavailable; using a two-message expandable-quote fallback.")
+        photo_result = telegram_api(
+            "sendPhoto",
+            data={
+                "chat_id": CHAT_ID,
+                "caption": f"⚽ <b>{html.escape(title[:180])}</b>\n\n🏆 {html.escape(category)}",
+                "parse_mode": "HTML",
+            },
+            files={"photo": ("source-image.jpg", photo_bytes, "image/jpeg")},
+            timeout=45,
+        )
+        summary_text = clean_text(summary)[:2000] or "لا تتوفر تفاصيل إضافية مؤكدة لهذا الخبر."
+        telegram_api(
+            "sendMessage",
+            data={
+                "chat_id": CHAT_ID,
+                "text": (
+                    "<b>📖 تفاصيل الخبر — اضغط لعرض المزيد</b>\n"
+                    f"<blockquote expandable>{html.escape(summary_text)}</blockquote>"
+                ),
+                "parse_mode": "HTML",
+            },
+            timeout=45,
+        )
+        return photo_result
 
 def load_state():
     try:
@@ -628,13 +690,8 @@ def main():
             print(f"Skipped: Arabic translation unavailable for {original_title[:100]!r}")
             continue
 
-        # Never let untranslated English paragraphs leak into an Arabic-only channel.
-        if has_arabic(original_summary):
-            summary_ar = original_summary
-        elif AZURE_TRANSLATOR_KEY and original_summary:
-            summary_ar = translate_to_arabic(original_summary[:900]) or ""
-        else:
-            summary_ar = ""
+        # Keep the report inside Telegram and translate the available feed description.
+        summary_ar = translate_long_summary_to_arabic(original_summary) if original_summary else ""
 
         link = entry.get("link", "").strip()
         category = category_for(original_title, original_summary, source.get("name", ""))
@@ -647,8 +704,7 @@ def main():
             print(f"Skipped: this exact photo was already used for another story in this run: {original_title[:100]!r}")
             continue
         used_image_fingerprints.add(photo_hash)
-        caption = build_caption(title_ar, summary_ar, source["name"], link, category)
-        send_news(caption, photo_bytes, title_ar, category, source["name"])
+        send_news(photo_bytes, title_ar, summary_ar, category)
 
         seen_links.add(link_hash)
         seen_titles.add(title_hash)

@@ -76,7 +76,12 @@ TEAM_NAMES_AR = {
     "al-jolan sc":"الجولان","al jolan sc":"الجولان","newroz":"نوروز",
     "al kahrabaa":"الكهرباء","al karkh":"الكرخ","al zawraa":"الزوراء",
     "erbil":"أربيل","duhok":"دهوك","diyala":"ديالى",
-    "dinamo batumi":"دينامو باتومي","dila gori":"ديلا جوري"
+    "dinamo batumi":"دينامو باتومي","dila gori":"ديلا جوري",
+    "vysocina jihlava":"فيسوتشينا يِهلافا","trinec":"ترينيتس",
+    "fk imt beograd":"إف كيه آي إم تي بلغراد","imt beograd":"آي إم تي بلغراد",
+    "macva sabac":"ماتشڤا شاباتس","mačva šabac":"ماتشڤا شاباتس",
+    "alanyaspor":"ألانيا سبور","konyaspor":"قونية سبور",
+    "rizespor":"ريزه سبور","kasimpasa":"قاسم باشا"
 }
 _LATIN_DIGRAPHS_AR = (("tch","تش"),("sch","ش"),("sh","ش"),("ch","تش"),("th","ث"),("gh","غ"),("kh","خ"),
     ("ph","ف"),("ck","ك"),("qu","كو"),("oo","و"),("ee","ي"),("ea","ي"),("ou","و"),("ow","او"),
@@ -564,7 +569,12 @@ def _download_logo(url):
         if visible:
             grayscale_ratio = sum(1 for red, green, blue in visible
                                   if max(red, green, blue) - min(red, green, blue) <= 12) / len(visible)
-            if len(unique) <= 14 and grayscale_ratio >= 0.94:
+            mean_luminance = sum((red * 299 + green * 587 + blue * 114) / 1000
+                                 for red, green, blue in visible) / len(visible)
+            dark_ratio = sum(1 for red, green, blue in visible
+                             if (red * 299 + green * 587 + blue * 114) / 1000 < 130) / len(visible)
+            generic_gray_shield = grayscale_ratio >= 0.97 and mean_luminance >= 185 and dark_ratio < 0.08
+            if generic_gray_shield or (len(unique) <= 14 and grayscale_ratio >= 0.94):
                 print("Rejected generic monochrome club placeholder:", urlparse(url).path[-70:])
                 LOGO_CACHE[url] = None
                 return None

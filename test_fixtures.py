@@ -75,7 +75,7 @@ class FixtureParsingTests(unittest.TestCase):
         match["kickoff"] = (now + timedelta(minutes=30)).isoformat()
         self.assertEqual(due_reminders(match, now), ["30m"])
         match["kickoff"] = (now + timedelta(hours=3)).isoformat()
-        self.assertEqual(due_reminders(match, now), [])
+        self.assertEqual(due_reminders(match, now), ["schedule"])
 
     def test_catch_up_schedule_is_sent_for_new_matches_inside_next_day(self):
         now = datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)

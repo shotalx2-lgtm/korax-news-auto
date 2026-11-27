@@ -171,9 +171,15 @@ class _GoalAnchorParser(HTMLParser):
         }
         if tag == "a":
             node["href"] = attrs.get("href") or ""
-            # Associate the fixture with the most recent competition heading only.
-            # Ancestor containers often contain many previous groups and contaminate the league.
             node["competition"] = self.current_competition
+            # GOAL sometimes renders competition headings inside divs, not h-tags.
+            # Resolve the most recent recognized heading in the nearest parent container.
+            for ancestor in reversed(self.stack):
+                context = " ".join(ancestor["text_parts"])
+                detected, _ = _goal_competition_name(context)
+                if detected:
+                    node["competition"] = context[-800:]
+                    break
         self.stack.append(node)
 
     def handle_startendtag(self, tag, attrs):
@@ -244,6 +250,7 @@ def _goal_competition_name(raw):
         (("erovnuli liga",), "الدوري الجورجي", "geo.1"),
         (("adnoc pro league",), "الدوري الإماراتي", "uae.1"),
         (("iraqi stars",), "الدوري العراقي", "irq.1"),
+        (("first league", "czechia"), "الدوري التشيكي", "cze.1"),
         (("fnl", "czechia"), "دوري الدرجة الثانية التشيكي", "cze.2"),
         (("super lig", "turkiye"), "الدوري التركي", "tur.1"),
         (("super lig", "türkiye"), "الدوري التركي", "tur.1"),

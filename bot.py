@@ -327,33 +327,37 @@ def _try_image_urls(candidates, limit):
 
 
 def download_best_image(entry, article_url):
-    rss_urls = [url for _, url in image_candidates(entry)]
-    best = _try_image_urls(rss_urls, 10)
-    if best:
-        return best[1]
-
-    # Google News RSS entries often include the publisher's original article URL in <source>.
+    # Prefer the image declared by the actual publisher article (og:image).
+    # RSS thumbnails can be generic feed artwork and may repeat across stories.
     page_targets = []
     source_info = entry.get("source") or {}
     publisher_url = source_info.get("href") if isinstance(source_info, dict) else None
     if publisher_url:
         parsed = urlparse(publisher_url)
-        if parsed.scheme in ("http", "https") and parsed.netloc and parsed.netloc.lower() not in ("news.google.com", "google.com"):
+        if parsed.scheme in ("https", "http") and parsed.netloc and parsed.netloc.lower() not in ("news.google.com", "google.com"):
             page_targets.append(publisher_url)
     page_targets.append(article_url)
 
     for page_target in dict.fromkeys(page_targets):
         page_urls = article_image_candidates(page_target)
+        # The article parser ranks Open Graph/Twitter publisher images above inline images.
         page_best = _try_image_urls(page_urls, 15)
-        if page_best and (best is None or page_best[0] > best[0]):
-            best = page_best
-        if best and best[0] >= 1_000_000:
-            break
+        if page_best:
+            return page_best[1]
 
-    if best:
-        return best[1]
-    print("No sufficiently large news photo found; using clean branded text card.")
+    # Only fall back to feed-provided images after checking the article page.
+    rss_urls = [url for _, url in image_candidates(entry)]
+    rss_best = _try_image_urls(rss_urls, 10)
+    if rss_best:
+        return rss_best[1]
+
+    print("No sufficiently large article-specific photo found; skipping this story.")
     return None
+
+
+def image_fingerprint(photo_bytes):
+    return hashlib.sha256(photo_bytes).hexdigest()
+
 
 def _font(size, bold=False):
     patterns = [
@@ -609,6 +613,7 @@ def main():
     published = 0
     failed_translations = 0
     pending_stories = list(seen_story_texts)
+    used_image_fingerprints = set()
     for entry, source, link_hash, title_hash, story_text in found:
         original_title = clean_text(entry.get("title", ""))
         if is_duplicate_title(story_text, pending_stories):
@@ -637,6 +642,11 @@ def main():
         if not photo_bytes:
             print(f"Skipped: no real article photo could be retrieved for {original_title[:100]!r}")
             continue
+        photo_hash = image_fingerprint(photo_bytes)
+        if photo_hash in used_image_fingerprints:
+            print(f"Skipped: this exact photo was already used for another story in this run: {original_title[:100]!r}")
+            continue
+        used_image_fingerprints.add(photo_hash)
         caption = build_caption(title_ar, summary_ar, source["name"], link, category)
         send_news(caption, photo_bytes, title_ar, category, source["name"])
 

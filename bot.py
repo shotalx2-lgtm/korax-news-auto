@@ -502,45 +502,42 @@ def load_state():
     try:
         with open(STATE_FILE, encoding="utf-8") as file:
             state = json.load(file)
-            return (
-                set(state.get("seen", [])),
-                set(state.get("titles", [])),
-                list(state.get("title_texts", [])),
-            )
+        return set(state.get("seen", [])), set(state.get("titles", [])), list(state.get("story_texts", []))
     except (FileNotFoundError, json.JSONDecodeError):
         return set(), set(), []
 
 
-def normalize_title(title):
-    value = unicodedata.normalize("NFKC", clean_text(title)).lower()
-    value = re.sub(r"[\u064B-\u065F\u0670\u0640]", "", value)
-    value = value.translate(str.maketrans({"أ":"ا","إ":"ا","آ":"ا","ى":"ي"}))
-    value = re.sub(r"https?://\S+|[^\w\u0600-\u06FF]+", " ", value)
-    return re.sub(r"\s+", " ", value).strip()
+def normalize_story(value):
+    value = unicodedata.normalize("NFKC", clean_text(value)).lower()
+    value = re.sub(r"[\\u064B-\\u065F\\u0670\\u0640]", "", value)
+    value = value.translate(str.maketrans({"أ":"ا", "إ":"ا", "آ":"ا", "ى":"ي", "ة":"ه"}))
+    value = re.sub(r"https?://\\S+|[^\\w\\u0600-\\u06FF]+", " ", value)
+    return re.sub(r"\\s+", " ", value).strip()
 
 
 def title_fingerprint(title):
-    normalized = re.sub(r"\s+", "", normalize_title(title))
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return hashlib.sha256(re.sub(r"\\s+", "", normalize_story(title)).encode("utf-8")).hexdigest()
 
 
-def is_duplicate_title(title, known_titles):
-    candidate = normalize_title(title)
+def is_duplicate_title(title, known_stories):
+    candidate = normalize_story(title)
     if not candidate:
         return False
-    candidate_tokens = set(candidate.split())
-    for previous in known_titles:
-        previous = normalize_title(previous)
+    ignored = {"في","من","على","عن","بعد","قبل","هذا","هذه","ذلك","مع","الى","إلى","بين","خلال","اليوم","غدا","أمس","رسمي","رسميا","تفاصيل","كرة","القدم","الدوري","مباراة","مباريات","نادي","فريق","لاعب"}
+    tokens = {w for w in candidate.split() if len(w) > 2 and w not in ignored}
+    for previous in known_stories:
+        previous = normalize_story(previous)
         if not previous:
             continue
         if candidate == previous:
             return True
-        # Compare both word overlap and character similarity to catch minor rewrites.
-        previous_tokens = set(previous.split())
-        union = candidate_tokens | previous_tokens
-        overlap = len(candidate_tokens & previous_tokens) / max(1, len(union))
+        other = {w for w in previous.split() if len(w) > 2 and w not in ignored}
+        if not tokens or not other:
+            continue
+        overlap = len(tokens & other) / max(1, len(tokens | other))
+        containment = len(tokens & other) / max(1, min(len(tokens), len(other)))
         similarity = difflib.SequenceMatcher(None, candidate, previous).ratio()
-        if similarity >= 0.90 or (overlap >= 0.84 and min(len(candidate_tokens), len(previous_tokens)) >= 5):
+        if similarity >= 0.86 or overlap >= 0.62 or (containment >= 0.80 and min(len(tokens), len(other)) >= 3):
             return True
     return False
 
@@ -552,7 +549,7 @@ def main():
     if not sources:
         raise RuntimeError("sources.json contains no RSS sources.")
 
-    seen_links, seen_titles, seen_title_texts = load_state()
+    seen_links, seen_titles, seen_story_texts = load_state()
     found = []
     healthy = 0
     total = 0
@@ -572,9 +569,12 @@ def main():
                     continue
                 link_hash = hashlib.sha256(link.split("#")[0].encode("utf-8")).hexdigest()
                 title_hash = title_fingerprint(title)
-                if link_hash in seen_links or title_hash in seen_titles or is_duplicate_title(title, seen_title_texts):
+                summary_for_dedup = clean_text(entry.get("summary", "") or entry.get("description", ""))
+                story_text = title + " " + summary_for_dedup[:500]
+                if link_hash in seen_links or title_hash in seen_titles or is_duplicate_title(story_text, seen_story_texts):
+                    print(f"Skipped duplicate while scanning feeds: {title[:120]}")
                     continue
-                found.append((entry, source, link_hash, title_hash))
+                found.append((entry, source, link_hash, title_hash, story_text))
 
     if healthy == 0:
         raise RuntimeError("All RSS sources failed. Check the feed URLs and network access.")
@@ -588,10 +588,10 @@ def main():
 
     published = 0
     failed_translations = 0
-    pending_titles = list(seen_title_texts)
-    for entry, source, link_hash, title_hash in found:
+    pending_stories = list(seen_story_texts)
+    for entry, source, link_hash, title_hash, story_text in found:
         original_title = clean_text(entry.get("title", ""))
-        if is_duplicate_title(original_title, pending_titles):
+        if is_duplicate_title(story_text, pending_stories):
             print(f"Skipped cross-source duplicate: {original_title[:120]}")
             continue
         if published >= MAX_POSTS_PER_RUN:
@@ -622,8 +622,8 @@ def main():
 
         seen_links.add(link_hash)
         seen_titles.add(title_hash)
-        pending_titles.append(original_title)
-        seen_title_texts.append(original_title)
+        pending_stories.append(story_text)
+        seen_story_texts.append(story_text)
         published += 1
         print(f"Published Arabic men's football news: {original_title[:140]} ({urlparse(link).netloc})")
         time.sleep(1)
@@ -632,7 +632,7 @@ def main():
         json.dump({
             "seen": list(seen_links)[-12000:],
             "titles": list(seen_titles)[-12000:],
-            "title_texts": seen_title_texts[-12000:],
+            "story_texts": seen_story_texts[-12000:],
         }, file, ensure_ascii=False, indent=2)
 
     print(

@@ -4,7 +4,8 @@ from datetime import datetime, timezone, timedelta
 from fixtures import (
     normalize_event, fixture_key, format_cairo_date,
     arabic_team_name, arabic_digits, make_match_card, build_caption,
-    due_reminders, reminder_key, parse_goal_fixtures, _goal_competition_name
+    due_reminders, reminder_key, parse_goal_fixtures, _goal_competition_name,
+    _RAQM_AVAILABLE, _rtl
 )
 from PIL import Image
 from io import BytesIO
@@ -174,6 +175,13 @@ class FixtureParsingTests(unittest.TestCase):
                  "kickoff": "2026-11-28T12:00:00+00:00"}
         self.assertIn("موعد المباراة غدًا", build_caption(match, "24h"))
         self.assertIn("بعد نصف ساعة", build_caption(match, "30m"))
+
+    def test_arabic_rendering_uses_only_one_bidi_engine(self):
+        source = "الدوري العراقي"
+        if _RAQM_AVAILABLE:
+            self.assertEqual(_rtl(source), source)
+        else:
+            self.assertTrue(_rtl(source))
 
     def test_known_club_names_are_arabic(self):
         self.assertEqual(arabic_team_name("Chelsea"), "تشيلسي")

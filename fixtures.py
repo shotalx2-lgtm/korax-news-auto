@@ -22,7 +22,7 @@ FIXTURES_FILE = "fixtures.json"
 STATE_FILE = "seen_matches.json"
 CAIRO = ZoneInfo("Africa/Cairo")
 LOOKAHEAD_HOURS = 26
-MAX_REMINDERS_PER_RUN = 10
+MAX_REMINDERS_PER_RUN = 6
 REMINDER_WINDOWS = {
     "24h": (timedelta(hours=23, minutes=45), timedelta(hours=24, minutes=15)),
     "30m": (timedelta(minutes=20), timedelta(minutes=35)),
@@ -153,14 +153,29 @@ class _GoalAnchorParser(HTMLParser):
             self.current["text"].append(data)
         else:
             candidate = re.sub(r"\s+", " ", data).strip()
-            if candidate:
-                self.context_buffer = (self.context_buffer + " " + candidate)[-320:]
-            context_lower = self.context_buffer.lower()
-            if any(key in context_lower for key in (
+            lower = candidate.lower()
+            if not candidate:
+                return
+            keywords = (
                 "premier league", "laliga", "la liga", "bundesliga", "serie a",
                 "ligue 1", "pro league", "major league soccer", "botola pro",
-                "confederation cup", "eredivisie", "liga portugal", "championship"
-            )):
+                "confederation cup", "eredivisie", "liga portugal", "championship",
+                "super liga", "super league", "adnoc", "iraqi stars", "prva liga",
+                "ekstraklasa", "sueper lig", "süper lig", "erovnuli"
+            )
+            countries = {
+                "england", "spain", "germany", "italy", "france", "saudi-arabia",
+                "saudi arabia", "morocco", "netherlands", "portugal", "brazil",
+                "iraq", "uae", "serbia", "slovenia", "turkey", "georgia", "poland",
+                "colombia", "malaysia", "greece", "romania", "croatia"
+            }
+            if any(key in lower for key in keywords) and "bundesliga app" not in lower:
+                # A new competition header starts a fresh context; do not carry the
+                # previous league's label into the next group of fixtures.
+                self.context_buffer = candidate
+                self.heading = candidate
+            elif self.context_buffer and (lower in countries or lower.startswith("game week")):
+                self.context_buffer = (self.context_buffer + " " + candidate).strip()[-180:]
                 self.heading = self.context_buffer
         if self.heading_depth:
             self.heading_buffer.append(data)
@@ -175,8 +190,10 @@ class _GoalAnchorParser(HTMLParser):
             if len(candidate) < 140 and any(key in lower for key in (
                 "premier league", "laliga", "la liga", "bundesliga", "serie a",
                 "ligue 1", "pro league", "major league soccer", "botola pro",
-                "confederation cup", "eredivisie", "liga portugal", "championship"
-            )):
+                "confederation cup", "eredivisie", "liga portugal", "championship",
+                "super liga", "super league", "adnoc", "iraqi stars", "prva liga",
+                "ekstraklasa", "sueper lig", "süper lig", "erovnuli"
+            )) and "bundesliga app" not in lower:
                 self.heading = candidate
                 self.context_buffer = candidate
             self.current = None
@@ -184,6 +201,7 @@ class _GoalAnchorParser(HTMLParser):
             heading = re.sub(r"\s+", " ", " ".join(self.heading_buffer)).strip()
             if heading:
                 self.heading = heading
+                self.context_buffer = heading
             self.heading_depth -= 1
             if not self.heading_depth:
                 self.heading_buffer = []
@@ -198,6 +216,9 @@ _GOAL_ROW_PATTERN = re.compile(
 
 def _goal_competition_name(raw):
     value = re.sub(r"\s+", " ", str(raw or "")).strip().lower()
+    if not value or any(token in value for token in ("women", "femenil", "u18", "academy", "youth")):
+        return "", ""
+
     mappings = (
         (("premier league", "england"), "الدوري الإنجليزي الممتاز", "eng.1"),
         (("premier league", "iraq"), "الدوري العراقي", "irq.1"),
@@ -208,6 +229,7 @@ def _goal_competition_name(raw):
         (("3. liga", "germany"), "دوري الدرجة الثالثة الألماني", "ger.3"),
         (("serie a", "italy"), "الدوري الإيطالي", "ita.1"),
         (("serie a", "brazil"), "الدوري البرازيلي", "bra.1"),
+        (("serie c", "italy"), "دوري الدرجة الثالثة الإيطالي", "ita.3"),
         (("ligue 1",), "الدوري الفرنسي", "fra.1"),
         (("pro league", "saudi"), "دوري روشن السعودي", "ksa.1"),
         (("major league soccer",), "الدوري الأمريكي", "usa.1"),
@@ -218,21 +240,28 @@ def _goal_competition_name(raw):
         (("confederation cup",), "كأس الكونفدرالية الإفريقية", "caf.confed"),
         (("caf champions",), "دوري أبطال إفريقيا", "caf.champions"),
         (("eredivisie",), "الدوري الهولندي", "ned.1"),
+        (("eerste divisie",), "دوري الدرجة الثانية الهولندي", "ned.2"),
         (("liga portugal",), "الدوري البرتغالي", "por.1"),
         (("world cup qualification", "concacaf"), "تصفيات كأس العالم - الكونكاكاف", "fifa.worldq.concacaf"),
         (("primera a", "colombia"), "الدوري الكولومبي", "col.1"),
-        (("eerste divisie",), "دوري الدرجة الثانية الهولندي", "ned.2"),
         (("liga super", "malaysia"), "الدوري الماليزي", "mys.1"),
         (("erovnuli liga",), "الدوري الجورجي", "geo.1"),
-        (("2. bundesliga",), "دوري الدرجة الثانية الألماني", "ger.2"),
+        (("adnoc pro league",), "الدوري الإماراتي", "uae.1"),
+        (("iraqi stars",), "الدوري العراقي", "irq.1"),
+        (("prva liga", "serbia"), "الدوري الصربي", "srb.1"),
+        (("prva liga", "slovenia"), "الدوري السلوفيني", "svn.1"),
+        (("super liga", "serbia"), "الدوري الصربي", "srb.1"),
+        (("super lig", "turkey"), "الدوري التركي", "tur.1"),
+        (("süper lig",), "الدوري التركي", "tur.1"),
+        (("ekstraklasa",), "الدوري البولندي", "pol.1"),
+        (("greek super league",), "الدوري اليوناني", "gre.1"),
+        (("liga i", "romania"), "الدوري الروماني", "rou.1"),
+        (("hnl", "croatia"), "الدوري الكرواتي", "cro.1"),
     )
     for tokens, name, slug in mappings:
         if all(token in value for token in tokens):
             return name, slug
-    if not value or any(token in value for token in ("women", "femenil", "u18", "academy", "youth")):
-        return "", ""
     return "", ""
-
 
 def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
     """Parse scheduled match rows from the official GOAL fixtures page."""
@@ -623,7 +652,7 @@ def due_reminders(match, now):
         return due
     # On first activation, catch matches already inside the next 24 hours
     # instead of waiting for a reminder window that has already passed.
-    if timedelta(minutes=35) < remaining < timedelta(hours=23, minutes=45):
+    if timedelta(minutes=35) < remaining < timedelta(hours=12):
         return ["schedule"]
     return []
 

@@ -8,17 +8,21 @@ from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard"
+GOAL_FIXTURES_URL = "https://www.goal.com/en-gb/fixtures/{date}"
+GOAL_TIMEZONE = ZoneInfo("America/New_York")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "@KoraxNews11").strip()
 FIXTURES_FILE = "fixtures.json"
 STATE_FILE = "seen_matches.json"
 CAIRO = ZoneInfo("Africa/Cairo")
 LOOKAHEAD_HOURS = 26
+MAX_REMINDERS_PER_RUN = 10
 REMINDER_WINDOWS = {
     "24h": (timedelta(hours=23, minutes=45), timedelta(hours=24, minutes=15)),
     "30m": (timedelta(minutes=20), timedelta(minutes=35)),
@@ -50,7 +54,17 @@ TEAM_NAMES_AR = {
     "al-ittihad":"الاتحاد","al shabab":"الشباب","al-shabab":"الشباب","al ettifaq":"الاتفاق",
     "al fateh":"الفتح","al taawoun":"التعاون","al wehda":"الوحدة","al raed":"الرائد","al khaleej":"الخليج",
     "al hazem":"الحزم","al fayha":"الفيحاء","al qadsiah":"القادسية","al sadd":"السد","al duhail":"الدحيل",
-    "al ain":"العين","al wasl":"الوصل","al ahly":"الأهلي","zamalek":"الزمالك","pyramids":"بيراميدز"
+    "al ain":"العين","al wasl":"الوصل","al ahly":"الأهلي","zamalek":"الزمالك","pyramids":"بيراميدز",
+    "al kholood":"الخلود","al khuluud":"الخلود","al khaleej":"الخليج","al kholood club":"الخلود",
+    "al qadsiah":"القادسية","al-qadsiah":"القادسية","al fayha":"الفيحاء","al-fayha":"الفيحاء",
+    "al ittihad":"الاتحاد","al-ittihad":"الاتحاد","neom":"نيوم","neom sc":"نيوم",
+    "werder bremen":"فيردر بريمن","borussia moenchengladbach":"بوروسيا مونشنجلادباخ",
+    "borussia mönchengladbach":"بوروسيا مونشنجلادباخ","monchengladbach":"مونشنجلادباخ",
+    "venezia":"فينيسيا","bologna":"بولونيا","stade brestois 29":"بريست","brest":"بريست",
+    "paris fc":"باريس إف سي","levante":"ليفانتي","racing santander":"راسينج سانتاندير",
+    "amal tiznit":"أمل تزنيت","us amal tiznit":"أمل تزنيت","moghreb tetouan":"المغرب التطواني",
+    "maghreb tetouan":"المغرب التطواني","azzam united":"عزام يونايتد","azam fc":"عزام يونايتد",
+    "al ahly tripoli":"أهلي طرابلس","al ahli tripoli":"أهلي طرابلس"
 }
 _LATIN_DIGRAPHS_AR = (("tch","تش"),("sch","ش"),("sh","ش"),("ch","تش"),("th","ث"),("gh","غ"),("kh","خ"),
     ("ph","ف"),("ck","ك"),("qu","كو"),("oo","و"),("ee","ي"),("ea","ي"),("ou","و"),("ow","او"),
@@ -105,30 +119,165 @@ def get_leagues():
     return leagues
 
 
-def fetch_league(league, months):
-    events = []
-    league_name = league["name"]
-    try:
-        for month in months:
-            response = HTTP.get(
-                BASE_URL.format(slug=league["slug"]),
-                params={"dates": month, "limit": 500},
-                timeout=15,
+class _GoalAnchorParser(HTMLParser):
+    """Collect Goal fixture anchors without relying on brittle CSS selectors."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.items = []
+        self.current = None
+        self.heading = ""
+        self.heading_depth = 0
+        self.heading_buffer = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag in ("h2", "h3", "h4"):
+            self.heading_depth += 1
+            self.heading_buffer = []
+        if tag == "a":
+            self.current = {
+                "href": attrs.get("href") or "",
+                "text": [],
+                "images": [],
+                "competition": self.heading,
+            }
+        elif tag == "img" and self.current is not None:
+            image = (attrs.get("src") or attrs.get("data-src") or
+                     attrs.get("data-lazy-src") or "")
+            if image.startswith(("http://", "https://", "/")):
+                self.current["images"].append(image)
+
+    def handle_data(self, data):
+        if self.current is not None:
+            self.current["text"].append(data)
+        if self.heading_depth:
+            self.heading_buffer.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self.current is not None:
+            self.current["text"] = " ".join(self.current["text"])
+            self.current["images"] = list(dict.fromkeys(self.current["images"]))
+            self.items.append(self.current)
+            self.current = None
+        if tag in ("h2", "h3", "h4") and self.heading_depth:
+            heading = re.sub(r"\s+", " ", " ".join(self.heading_buffer)).strip()
+            if heading:
+                self.heading = heading
+            self.heading_depth -= 1
+            if not self.heading_depth:
+                self.heading_buffer = []
+
+
+_GOAL_ROW_PATTERN = re.compile(
+    r"^(?P<home>.+?)\s+(?P<home_code>[A-Z0-9]{2,4})\s+"
+    r"(?P<away>.+?)\s+(?P<away_code>[A-Z0-9]{2,4})\s+"
+    r"(?P<time>\d{1,2}:\d{2})$"
+)
+
+
+def _goal_competition_name(raw):
+    value = re.sub(r"\s+", " ", str(raw or "")).strip().lower()
+    mappings = (
+        (("premier league", "england"), "الدوري الإنجليزي الممتاز", "eng.1"),
+        (("laliga", "la liga"), "الدوري الإسباني", "esp.1"),
+        (("bundesliga",), "الدوري الألماني", "ger.1"),
+        (("serie a", "italy"), "الدوري الإيطالي", "ita.1"),
+        (("ligue 1",), "الدوري الفرنسي", "fra.1"),
+        (("pro league", "saudi"), "دوري روشن السعودي", "ksa.1"),
+        (("major league soccer", "mls"), "الدوري الأمريكي", "usa.1"),
+        (("championship", "england"), "دوري البطولة الإنجليزية", "eng.2"),
+        (("botola pro", "morocco"), "الدوري المغربي", "mar.1"),
+        (("confederation cup", "africa"), "كأس الكونفدرالية الإفريقية", "caf.confed"),
+        (("caf champions",), "دوري أبطال إفريقيا", "caf.champions"),
+        (("eredivisie",), "الدوري الهولندي", "ned.1"),
+        (("liga portugal", "portugal"), "الدوري البرتغالي", "por.1"),
+        (("serie a", "brazil"), "الدوري البرازيلي", "bra.1"),
+    )
+    for tokens, name, slug in mappings:
+        if all(token in value for token in tokens):
+            return name, slug
+    if not value or "women" in value or "femenil" in value or "u18" in value or "academy" in value:
+        return "", ""
+    slug = re.sub(r"[^a-z0-9]+", "-", value).strip("-") or "goal-football"
+    return "مباريات كرة القدم", slug
+
+
+def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
+    """Parse scheduled match rows from the official GOAL fixtures page."""
+    parser = _GoalAnchorParser()
+    parser.feed(page_html or "")
+    matches = []
+    for item in parser.items:
+        text = re.sub(r"\s+", " ", item.get("text", "")).strip()
+        result = _GOAL_ROW_PATTERN.match(text)
+        if not result:
+            continue
+        home = result.group("home").strip()
+        away = result.group("away").strip()
+        if re.search(r"\b(women|femenil|u18|academy|youth)\b", f"{home} {away}", re.I):
+            continue
+        league_name, league_slug = _goal_competition_name(item.get("competition"))
+        if not league_name:
+            continue
+        hour, minute = map(int, result.group("time").split(":"))
+        try:
+            kickoff_local = datetime(
+                match_date.year, match_date.month, match_date.day,
+                hour, minute, tzinfo=page_timezone
             )
-            response.raise_for_status()
-            payload = response.json()
-            if not isinstance(payload, dict):
-                raise RuntimeError("The scoreboard response was not a JSON object.")
-            events.extend(payload.get("events") or [])
-            league_meta = (payload.get("leagues") or [{}])[0]
-            league_name = league_meta.get("name") or league_name
-            league_logo = _league_logo_url(league_meta)
-            if league_logo:
-                league = dict(league)
-                league["logo"] = league_logo
-        return league, league_name, events, None
-    except Exception as exc:
-        return league, league_name, [], exc
+        except ValueError:
+            continue
+        kickoff = kickoff_local.astimezone(timezone.utc)
+        href = item.get("href", "")
+        event_id = urlparse(href).path.rstrip("/").split("/")[-1]
+        if not event_id or event_id in ("fixtures", "live-scores"):
+            raw_id = f"{league_slug}|{home}|{away}|{kickoff.isoformat()}"
+            event_id = hashlib.sha256(raw_id.encode("utf-8")).hexdigest()[:20]
+        logos = [urljoin("https://www.goal.com", image) for image in item.get("images", [])[:2]]
+        matches.append({
+            "league_slug": league_slug,
+            "league": league_name,
+            "league_logo": "",
+            "event_id": event_id,
+            "kickoff": kickoff.isoformat(),
+            "home": home,
+            "away": away,
+            "home_logo": logos[0] if len(logos) > 0 else "",
+            "away_logo": logos[1] if len(logos) > 1 else "",
+            "home_form": "",
+            "away_form": "",
+            "home_record": "",
+            "away_record": "",
+            "stage": "",
+            "round": "",
+            "venue": "",
+            "status": "pre",
+        })
+    unique = {fixture_key(match): match for match in matches}
+    return sorted(unique.values(), key=lambda item: item["kickoff"])
+
+
+def fetch_goal_matches(now, end):
+    """Fetch GOAL's dated fixtures pages and convert their displayed times to Cairo."""
+    all_matches = {}
+    dates = {now.astimezone(CAIRO).date(), end.astimezone(CAIRO).date()}
+    healthy_pages = 0
+    for fixture_date in sorted(dates):
+        url = GOAL_FIXTURES_URL.format(date=fixture_date.isoformat())
+        response = HTTP.get(url, timeout=20, allow_redirects=True)
+        response.raise_for_status()
+        healthy_pages += 1
+        parsed = parse_goal_fixtures(response.text, fixture_date)
+        print(f"GOAL fixtures {fixture_date}: HTTP {response.status_code}; "
+              f"{len(response.content)} bytes; {len(parsed)} scheduled matches parsed.")
+        for match in parsed:
+            kickoff = _parse_datetime(match["kickoff"])
+            if kickoff and now < kickoff <= end:
+                all_matches[fixture_key(match)] = match
+    if not healthy_pages or not all_matches:
+        raise RuntimeError("GOAL fixtures returned no verifiable upcoming matches; refusing to fall back to another source.")
+    return sorted(all_matches.values(), key=lambda item: item["kickoff"])
+
 
 
 def _parse_datetime(value):
@@ -443,32 +592,7 @@ def reminder_key(match, reminder_type):
 def main():
     now = datetime.now(timezone.utc)
     end = now + timedelta(hours=LOOKAHEAD_HOURS)
-    months = sorted({now.strftime("%Y%m"), end.strftime("%Y%m")})
-    leagues = get_leagues()
-    results = []
-    healthy = 0
-
-    with ThreadPoolExecutor(max_workers=min(10, len(leagues))) as pool:
-        futures = [pool.submit(fetch_league, league, months) for league in leagues]
-        for future in as_completed(futures):
-            league, league_name, events, error = future.result()
-            if error:
-                print(f"Fixture source failed for {league['name']} ({league['slug']}): {error!r}")
-                continue
-            healthy += 1
-            for event in events:
-                match = normalize_event(league, league_name, event)
-                if not match:
-                    continue
-                kickoff = _parse_datetime(match["kickoff"])
-                if kickoff and now < kickoff <= end and match.get("status") == "pre":
-                    results.append(match)
-
-    if healthy == 0:
-        raise RuntimeError("Every scoreboard request failed; no fixture data could be checked.")
-
-    unique = {fixture_key(match): match for match in results}
-    matches = sorted(unique.values(), key=lambda item: item["kickoff"])
+    matches = fetch_goal_matches(now, end)
     seen = load_seen()
     due = []
     for match in matches:
@@ -477,12 +601,11 @@ def main():
             if key not in seen:
                 due.append((match, reminder_type, key))
 
-    print(f"Fixture scan: {healthy}/{len(leagues)} competitions reachable; "
-          f"{len(matches)} upcoming matches in the next {LOOKAHEAD_HOURS} hours; "
-          f"{len(due)} due reminders (24h / 30m).")
+    print(f"GOAL scan: {len(matches)} upcoming matches in the next {LOOKAHEAD_HOURS} hours; "
+          f"{len(due)} due reminders (schedule / 24h / 30m).")
 
     published = 0
-    for match, reminder_type, key in due:
+    for match, reminder_type, key in due[:MAX_REMINDERS_PER_RUN]:
         try:
             photo = make_match_card(match)
             _telegram(
@@ -493,13 +616,18 @@ def main():
             seen.add(key)
             save_seen(seen)
             published += 1
-            label = "24 hours" if reminder_type == "24h" else "30 minutes"
-            print(f"Published {label} reminder: {match['home']} vs {match['away']} | {match['league']} | {match['kickoff']}")
+            labels = {
+                "schedule": "upcoming schedule",
+                "24h": "24-hour reminder",
+                "30m": "30-minute reminder",
+            }
+            print(f"Published {labels.get(reminder_type, reminder_type)}: "
+                  f"{match['home']} vs {match['away']} | {match['league']} | {match['kickoff']}")
             time.sleep(1)
         except Exception as exc:
             print(f"Could not publish {reminder_type} reminder for {match.get('home')} vs {match.get('away')}: {exc!r}")
 
-    print(f"Fixture run finished: {published} reminders published.")
+    print(f"GOAL fixture run finished: {published} reminders published.")
 
 
 if __name__ == "__main__":

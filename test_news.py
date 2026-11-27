@@ -1,0 +1,33 @@
+import unittest
+from unittest.mock import patch
+
+import bot
+
+
+class NewsImageTests(unittest.TestCase):
+    def test_image_fingerprint_changes_with_photo_bytes(self):
+        self.assertEqual(bot.image_fingerprint(b"same-photo"), bot.image_fingerprint(b"same-photo"))
+        self.assertNotEqual(bot.image_fingerprint(b"photo-one"), bot.image_fingerprint(b"photo-two"))
+
+    @patch("bot._try_image_urls", return_value=(2_000_000, b"publisher-photo"))
+    @patch("bot.article_image_candidates", return_value=["https://publisher.example/og-image.jpg"])
+    def test_prefers_actual_article_image_before_rss_thumbnail(self, _article_candidates, try_images):
+        entry = {
+            "source": {"href": "https://publisher.example"},
+            "media_content": [{"url": "https://feeds.example/shared-thumbnail.jpg"}],
+        }
+        result = bot.download_best_image(entry, "https://publisher.example/story")
+        self.assertEqual(result, b"publisher-photo")
+        self.assertEqual(try_images.call_count, 1)
+        self.assertEqual(try_images.call_args.args[0], ["https://publisher.example/og-image.jpg"])
+
+    @patch("bot._try_image_urls", side_effect=[None, (1_000_000, b"rss-photo")])
+    @patch("bot.article_image_candidates", return_value=[])
+    @patch("bot.image_candidates", return_value=[(0, "https://feeds.example/article-photo.jpg")])
+    def test_rss_photo_is_only_a_fallback(self, _rss_candidates, _article_candidates, _try_images):
+        result = bot.download_best_image({"source": {}}, "https://publisher.example/story")
+        self.assertEqual(result, b"rss-photo")
+
+
+if __name__ == "__main__":
+    unittest.main()

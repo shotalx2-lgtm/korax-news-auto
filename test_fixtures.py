@@ -89,10 +89,14 @@ class FixtureParsingTests(unittest.TestCase):
         with patch("fixtures._download_logo", return_value=fake_badge):
             image = Image.open(BytesIO(make_match_card(match).getvalue()))
         self.assertEqual(image.size, (1200, 675))
+        match["round"] = "Matchday 12"
         caption = build_caption(match)
         self.assertIn("تشيلسي ضد نوتينجهام فورست", caption)
         self.assertIn("١٠:٠٠ م", caption)
+        self.assertIn("الجولة ١٢", caption)
+        self.assertIn("كوراكس", caption)
         self.assertNotIn("Chelsea", caption)
+        self.assertNotIn("KORAX", caption)
 
 
 if __name__ == "__main__":

@@ -150,6 +150,15 @@ class _GoalAnchorParser(HTMLParser):
     def handle_data(self, data):
         if self.current is not None:
             self.current["text"].append(data)
+        else:
+            candidate = re.sub(r"\s+", " ", data).strip()
+            lower = candidate.lower()
+            if len(candidate) < 100 and any(key in lower for key in (
+                "premier league", "laliga", "la liga", "bundesliga", "serie a",
+                "ligue 1", "pro league", "major league soccer", "botola pro",
+                "confederation cup", "eredivisie", "liga portugal", "championship"
+            )):
+                self.heading = candidate
         if self.heading_depth:
             self.heading_buffer.append(data)
 
@@ -158,6 +167,14 @@ class _GoalAnchorParser(HTMLParser):
             self.current["text"] = " ".join(self.current["text"])
             self.current["images"] = list(dict.fromkeys(self.current["images"]))
             self.items.append(self.current)
+            candidate = self.current["text"]
+            lower = candidate.lower()
+            if len(candidate) < 100 and any(key in lower for key in (
+                "premier league", "laliga", "la liga", "bundesliga", "serie a",
+                "ligue 1", "pro league", "major league soccer", "botola pro",
+                "confederation cup", "eredivisie", "liga portugal", "championship"
+            )):
+                self.heading = candidate
             self.current = None
         if tag in ("h2", "h3", "h4") and self.heading_depth:
             heading = re.sub(r"\s+", " ", " ".join(self.heading_buffer)).strip()
@@ -260,7 +277,7 @@ def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):
 def fetch_goal_matches(now, end):
     """Fetch GOAL's dated fixtures pages and convert their displayed times to Cairo."""
     all_matches = {}
-    dates = {now.astimezone(CAIRO).date(), end.astimezone(CAIRO).date()}
+    dates = {now.astimezone(GOAL_TIMEZONE).date(), end.astimezone(GOAL_TIMEZONE).date()}
     healthy_pages = 0
     for fixture_date in sorted(dates):
         url = GOAL_FIXTURES_URL.format(date=fixture_date.isoformat())
@@ -526,6 +543,7 @@ def build_caption(match, reminder_type=None):
     home_ar=arabic_team_name(match.get("home"))
     away_ar=arabic_team_name(match.get("away"))
     reminder_labels = {
+        "schedule": "📅 <b>موعد مباراة قادمة</b>",
         "24h": "⏳ <b>موعد المباراة غدًا</b>",
         "30m": "🚨 <b>المباراة هتبدأ بعد نصف ساعة</b>",
     }
@@ -581,8 +599,15 @@ def due_reminders(match, now):
     if not kickoff:
         return []
     remaining = kickoff - now
-    return [kind for kind, (earliest, latest) in REMINDER_WINDOWS.items()
-            if earliest <= remaining <= latest]
+    due = [kind for kind, (earliest, latest) in REMINDER_WINDOWS.items()
+           if earliest <= remaining <= latest]
+    if due:
+        return due
+    # On first activation, catch matches already inside the next 24 hours
+    # instead of waiting for a reminder window that has already passed.
+    if timedelta(minutes=35) < remaining < timedelta(hours=23, minutes=45):
+        return ["schedule"]
+    return []
 
 
 def reminder_key(match, reminder_type):

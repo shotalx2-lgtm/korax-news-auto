@@ -258,9 +258,17 @@ def _goal_competition_name(raw):
         (("liga i", "romania"), "الدوري الروماني", "rou.1"),
         (("hnl", "croatia"), "الدوري الكرواتي", "cro.1"),
     )
-    for tokens, name, slug in mappings:
-        if all(token in value for token in tokens):
-            return name, slug
+    matches = []
+    for priority, (tokens, name, slug) in enumerate(mappings):
+        positions = [value.rfind(token) for token in tokens]
+        if all(position >= 0 for position in positions):
+            # The page parser can see several preceding group headings in the same
+            # parent container; choose the latest competition label in document order.
+            group_start = min(positions)
+            matches.append((group_start, -priority, name, slug))
+    if matches:
+        _, _, name, slug = max(matches)
+        return name, slug
     return "", ""
 
 def parse_goal_fixtures(page_html, match_date, page_timezone=GOAL_TIMEZONE):

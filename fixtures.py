@@ -388,7 +388,7 @@ def build_caption(match, reminder_type=None):
         f"🏆 <b>البطولة:</b> {_escape(match.get('league') or 'بطولة كرة القدم')}",
         f"📅 <b>التاريخ:</b> {_escape(arabic_digits(formatted['date']))}",
         f"⏰ <b>الموعد:</b> {_escape(arabic_digits(formatted['time']))} بتوقيت القاهرة",
-    ]
+    ])
     if match.get("round"):
         round_name = str(match["round"])
         round_number = re.search(r"\d+", round_name)

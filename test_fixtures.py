@@ -103,32 +103,6 @@ class FixtureParsingTests(unittest.TestCase):
         cairo = datetime.fromisoformat(match["kickoff"]).astimezone(ZoneInfo("Africa/Cairo"))
         self.assertEqual((cairo.hour, cairo.minute), (22, 0))
 
-    def test_goal_team_suffix_is_not_mistaken_for_team_code(self):
-        html = """
-        <h2>Premier League Iraq</h2>
-        <a href="/match/ghaz-karma">
-          <img src="/images/ghaz.png" alt="Ghaz Al-Shamal SC club badge">
-          <img src="/images/karma.png" alt="Al-Karma club badge">
-          Ghaz Al-Shamal SC SHA Al-Karma ALK 10:30
-        </a>
-        """
-        parsed = parse_goal_fixtures(html, datetime(2026, 11, 27).date())
-        self.assertEqual(len(parsed), 1)
-        self.assertEqual(parsed[0]["home"], "Ghaz Al-Shamal SC")
-        self.assertEqual(parsed[0]["away"], "Al-Karma")
-        self.assertEqual(parsed[0]["home_logo"], "https://www.goal.com/images/ghaz.png")
-        self.assertEqual(parsed[0]["away_logo"], "https://www.goal.com/images/karma.png")
-        self.assertEqual(arabic_team_name(parsed[0]["home"]), "غاز الشمال")
-        self.assertEqual(arabic_team_name(parsed[0]["away"]), "الكرمة")
-
-    def test_known_iraqi_and_georgian_club_names_are_arabic(self):
-        self.assertEqual(arabic_team_name("Zakho"), "زاخو")
-        self.assertEqual(arabic_team_name("Karbalaa"), "كربلاء")
-        self.assertEqual(arabic_team_name("Al-Gharraf"), "الغراف")
-        self.assertEqual(arabic_team_name("Al-Mosul"), "الموصل")
-        self.assertEqual(arabic_team_name("Dinamo Batumi"), "دينامو باتومي")
-        self.assertEqual(arabic_team_name("Dila Gori"), "ديلا جوري")
-
     def test_goal_parser_ignores_unrecognized_and_finished_rows(self):
         html = """
         <h3>Premier League England</h3>

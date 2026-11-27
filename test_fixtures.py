@@ -4,11 +4,12 @@ from datetime import datetime, timezone, timedelta
 from fixtures import (
     normalize_event, fixture_key, format_cairo_date,
     arabic_team_name, arabic_digits, make_match_card, build_caption,
-    due_reminders, reminder_key
+    due_reminders, reminder_key, parse_goal_fixtures
 )
 from PIL import Image
 from io import BytesIO
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 
 class FixtureParsingTests(unittest.TestCase):
@@ -75,6 +76,40 @@ class FixtureParsingTests(unittest.TestCase):
         self.assertEqual(due_reminders(match, now), ["30m"])
         match["kickoff"] = (now + timedelta(hours=3)).isoformat()
         self.assertEqual(due_reminders(match, now), [])
+
+    def test_catch_up_schedule_is_sent_for_new_matches_inside_next_day(self):
+        now = datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)
+        match = {"kickoff": (now + timedelta(hours=4)).isoformat()}
+        self.assertEqual(due_reminders(match, now), ["schedule"])
+
+    def test_goal_fixtures_are_parsed_and_converted_to_cairo_correctly(self):
+        html = """
+        <h2>Premier League England</h2>
+        <a href="/match/fixture-forest-chelsea">
+          <img src="/images/forest.png"><img src="/images/chelsea.png">
+          Nottingham Forest NFO Chelsea CHE 15:00
+        </a>
+        """
+        parsed = parse_goal_fixtures(
+            html,
+            datetime(2026, 11, 27).date()
+        )
+        self.assertEqual(len(parsed), 1)
+        match = parsed[0]
+        self.assertEqual(match["home"], "Nottingham Forest")
+        self.assertEqual(match["away"], "Chelsea")
+        self.assertEqual(match["league"], "الدوري الإنجليزي الممتاز")
+        self.assertEqual(match["home_logo"], "https://www.goal.com/images/forest.png")
+        cairo = datetime.fromisoformat(match["kickoff"]).astimezone(ZoneInfo("Africa/Cairo"))
+        self.assertEqual((cairo.hour, cairo.minute), (22, 0))
+
+    def test_goal_parser_ignores_unrecognized_and_finished_rows(self):
+        html = """
+        <h3>Premier League England</h3>
+        <a href="/match/one">Nottingham Forest NFO Chelsea CHE FT</a>
+        <a href="/match/two">Invalid Row 15:00</a>
+        """
+        self.assertEqual(parse_goal_fixtures(html, datetime(2026, 11, 27).date()), [])
 
     def test_reminder_keys_are_separate_for_same_match(self):
         match = {"league_slug": "eng.1", "event_id": "chelsea-forest",

@@ -271,9 +271,8 @@ def _download_logo(url):
         return None
 
 
-def _paste_badge(canvas, url, center, fallback, draw):
+def _paste_badge(canvas, url, center, fallback, draw, diameter=190):
     x, y = center
-    diameter = 190
     draw.ellipse((x-diameter//2-9,y-diameter//2-9,x+diameter//2+9,y+diameter//2+9),
                  fill=(255,255,255), outline=(234,255,0), width=5)
     logo = _download_logo(url)
@@ -331,8 +330,8 @@ def make_match_card(match):
     league=_rtl(str(match.get("league") or "بطولة كرة القدم"))
     league_logo=match.get("league_logo")
     if league_logo:
-        _paste_badge(canvas,league_logo,(1090,112),"",draw)
-        league_bounds=(430,62,980,150)
+        _paste_badge(canvas,league_logo,(1110,112),"",draw,diameter=82)
+        league_bounds=(430,62,1030,150)
     else:
         league_bounds=(500,62,1110,150)
     league_font=_fit_text(draw,league,league_bounds[2]-league_bounds[0],44,24)

@@ -120,91 +120,64 @@ def get_leagues():
 
 
 class _GoalAnchorParser(HTMLParser):
-    """Collect Goal fixture anchors without relying on brittle CSS selectors."""
+    """Collect fixture anchors together with the closest preceding competition context."""
+    VOID_TAGS = {"img", "br", "input", "source", "meta", "link", "hr"}
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.items = []
-        self.current = None
-        self.heading = ""
-        self.heading_depth = 0
-        self.heading_buffer = []
-        self.context_buffer = ""
+        self.stack = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag in ("h2", "h3", "h4"):
-            self.heading_depth += 1
-            self.heading_buffer = []
-        if tag == "a":
-            self.current = {
-                "href": attrs.get("href") or "",
-                "text": [],
-                "images": [],
-                "competition": self.heading,
-            }
-        elif tag == "img" and self.current is not None:
+        if tag == "img":
             image = (attrs.get("src") or attrs.get("data-src") or
                      attrs.get("data-lazy-src") or "")
             if image.startswith(("http://", "https://", "/")):
-                self.current["images"].append(image)
+                for node in reversed(self.stack):
+                    if node["tag"] == "a":
+                        node["images"].append(image)
+                        break
+            return
+        if tag in self.VOID_TAGS:
+            return
+
+        node = {
+            "tag": tag,
+            "attrs": attrs,
+            "text_parts": [],
+            "images": [],
+        }
+        if tag == "a":
+            node["href"] = attrs.get("href") or ""
+            node["competition"] = ""
+            # Walk up the DOM and use the nearest parent text that identifies a league.
+            for ancestor in reversed(self.stack):
+                context = " ".join(ancestor["text_parts"])
+                if _goal_competition_name(context)[0]:
+                    node["competition"] = context[-800:]
+                    break
+        self.stack.append(node)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.VOID_TAGS:
+            self.handle_endtag(tag)
 
     def handle_data(self, data):
-        if self.current is not None:
-            self.current["text"].append(data)
-        else:
-            candidate = re.sub(r"\s+", " ", data).strip()
-            lower = candidate.lower()
-            if not candidate:
-                return
-            keywords = (
-                "premier league", "laliga", "la liga", "bundesliga", "serie a",
-                "ligue 1", "pro league", "major league soccer", "botola pro",
-                "confederation cup", "eredivisie", "liga portugal", "championship",
-                "super liga", "super league", "adnoc", "iraqi stars", "prva liga",
-                "ekstraklasa", "sueper lig", "süper lig", "erovnuli"
-            )
-            countries = {
-                "england", "spain", "germany", "italy", "france", "saudi-arabia",
-                "saudi arabia", "morocco", "netherlands", "portugal", "brazil",
-                "iraq", "uae", "serbia", "slovenia", "turkey", "georgia", "poland",
-                "colombia", "malaysia", "greece", "romania", "croatia"
-            }
-            if any(key in lower for key in keywords) and "bundesliga app" not in lower:
-                # A new competition header starts a fresh context; do not carry the
-                # previous league's label into the next group of fixtures.
-                self.context_buffer = candidate
-                self.heading = candidate
-            elif self.context_buffer and (lower in countries or lower.startswith("game week")):
-                self.context_buffer = (self.context_buffer + " " + candidate).strip()[-180:]
-                self.heading = self.context_buffer
-        if self.heading_depth:
-            self.heading_buffer.append(data)
+        for node in self.stack:
+            node["text_parts"].append(data)
 
     def handle_endtag(self, tag):
-        if tag == "a" and self.current is not None:
-            self.current["text"] = " ".join(self.current["text"])
-            self.current["images"] = list(dict.fromkeys(self.current["images"]))
-            self.items.append(self.current)
-            candidate = self.current["text"]
-            lower = candidate.lower()
-            if len(candidate) < 140 and any(key in lower for key in (
-                "premier league", "laliga", "la liga", "bundesliga", "serie a",
-                "ligue 1", "pro league", "major league soccer", "botola pro",
-                "confederation cup", "eredivisie", "liga portugal", "championship",
-                "super liga", "super league", "adnoc", "iraqi stars", "prva liga",
-                "ekstraklasa", "sueper lig", "süper lig", "erovnuli"
-            )) and "bundesliga app" not in lower:
-                self.heading = candidate
-                self.context_buffer = candidate
-            self.current = None
-        if tag in ("h2", "h3", "h4") and self.heading_depth:
-            heading = re.sub(r"\s+", " ", " ".join(self.heading_buffer)).strip()
-            if heading:
-                self.heading = heading
-                self.context_buffer = heading
-            self.heading_depth -= 1
-            if not self.heading_depth:
-                self.heading_buffer = []
+        while self.stack and self.stack[-1]["tag"] != tag:
+            self.stack.pop()
+        if not self.stack:
+            return
+        node = self.stack.pop()
+        if node["tag"] == "a":
+            node["text"] = " ".join(node["text_parts"])
+            node["images"] = list(dict.fromkeys(node["images"]))
+            self.items.append(node)
 
 
 _GOAL_ROW_PATTERN = re.compile(

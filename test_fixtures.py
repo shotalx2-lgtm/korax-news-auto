@@ -1,9 +1,10 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fixtures import (
     normalize_event, fixture_key, format_cairo_date,
-    arabic_team_name, arabic_digits, make_match_card, build_caption
+    arabic_team_name, arabic_digits, make_match_card, build_caption,
+    due_reminders, reminder_key
 )
 from PIL import Image
 from io import BytesIO
@@ -64,6 +65,28 @@ class FixtureParsingTests(unittest.TestCase):
         result = format_cairo_date(datetime(2026, 11, 27, 20, 0, tzinfo=timezone.utc))
         self.assertIn("27 نوفمبر 2026", result["date"])
         self.assertIn("10:00 م", result["time"])
+
+    def test_24_hour_and_30_minute_reminder_windows(self):
+        now = datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)
+        match = {"league_slug": "eng.1", "event_id": "chelsea-forest",
+                 "kickoff": (now + timedelta(hours=24)).isoformat()}
+        self.assertEqual(due_reminders(match, now), ["24h"])
+        match["kickoff"] = (now + timedelta(minutes=30)).isoformat()
+        self.assertEqual(due_reminders(match, now), ["30m"])
+        match["kickoff"] = (now + timedelta(hours=3)).isoformat()
+        self.assertEqual(due_reminders(match, now), [])
+
+    def test_reminder_keys_are_separate_for_same_match(self):
+        match = {"league_slug": "eng.1", "event_id": "chelsea-forest",
+                 "kickoff": "2026-11-28T12:00:00+00:00"}
+        self.assertNotEqual(reminder_key(match, "24h"), reminder_key(match, "30m"))
+
+    def test_reminder_caption_explains_when_match_starts(self):
+        match = {"home": "Chelsea", "away": "Nottingham Forest",
+                 "league": "الدوري الإنجليزي",
+                 "kickoff": "2026-11-28T12:00:00+00:00"}
+        self.assertIn("موعد المباراة غدًا", build_caption(match, "24h"))
+        self.assertIn("بعد نصف ساعة", build_caption(match, "30m"))
 
     def test_known_club_names_are_arabic(self):
         self.assertEqual(arabic_team_name("Chelsea"), "تشيلسي")

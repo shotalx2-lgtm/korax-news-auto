@@ -61,13 +61,62 @@ jobs:
           MYMEMORY_EMAIL: ${{ secrets.MYMEMORY_EMAIL }}
         run: python bot.py
 
-      - name: Save duplicate-prevention state
+      - name: Merge and save duplicate-prevention state safely
         run: |
-          if ! git diff --quiet -- seen_news.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+
+            python - <<'PY'
+          import json
+          import subprocess
+
+          path = "seen_news.json"
+          try:
+              remote_raw = subprocess.check_output(
+                  ["git", "show", "origin/main:" + path], text=True
+              )
+              remote = json.loads(remote_raw)
+          except Exception:
+              remote = {}
+
+          try:
+              with open(path, encoding="utf-8") as file:
+                  local = json.load(file)
+          except Exception:
+              local = {}
+
+          merged = {}
+          for key, limit in (("seen", 12000), ("titles", 12000)):
+              values = list(dict.fromkeys(remote.get(key, []) + local.get(key, [])))
+              merged[key] = values[-limit:]
+
+          stories = list(dict.fromkeys(
+              remote.get("story_texts", []) + local.get("story_texts", [])
+          ))
+          merged["story_texts"] = stories[-12000:]
+
+          with open(path, "w", encoding="utf-8") as file:
+              json.dump(merged, file, ensure_ascii=False, indent=2)
+          PY
+
             git add seen_news.json
+            if git diff --cached --quiet; then
+              echo "News state is already up to date."
+              exit 0
+            fi
+
             git commit -m "Update published news state"
-            git pull --rebase origin main
-            git push
-          fi
+            if git push origin HEAD:main; then
+              echo "News state saved."
+              exit 0
+            fi
+
+            echo "State push raced another workflow; merging remote state and retrying."
+            git reset --soft origin/main
+          done
+
+          echo "Could not save merged news state after three attempts."
+          exit 1
